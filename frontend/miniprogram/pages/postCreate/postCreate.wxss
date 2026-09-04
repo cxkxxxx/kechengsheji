@@ -1,0 +1,5 @@
+.container { padding: 24rpx; }
+.input-title { font-size: 34rpx; font-weight: 600; border-bottom: 1rpx solid #eee; padding: 16rpx 0; }
+.input-content { width: 100%; height: 400rpx; margin-top: 16rpx; font-size: 28rpx; }
+.input-tags { margin-top: 16rpx; font-size: 26rpx; color: #666; }
+.btn-primary { margin-top: 40rpx; background: #4B3FE3; color: #fff; border-radius: 12rpx; }

@@ -1,0 +1,23 @@
+<!-- 账单页：消费记录 + AI分析 -->
+<view class="container">
+  <!-- 月度汇总 -->
+  <view class="card summary">
+    <text class="title">本月支出</text>
+    <text class="amount">{{summary.total || '0.00'}} 元</text>
+    <text class="desc">共 {{summary.count || 0}} 笔</text>
+  </view>
+
+  <!-- 账单列表 -->
+  <view class="bill-list">
+    <view class="card bill-item" wx:for="{{bills}}" wx:key="id">
+      <view class="flex-between">
+        <text>{{item.source || item.category}}</text>
+        <text class="amount">{{item.amount}} 元</text>
+      </view>
+      <text class="desc">{{item.category}} · {{item.bill_date}}</text>
+    </view>
+  </view>
+
+  <!-- 记一笔按钮 -->
+  <view class="fab" bindtap="addBill">+</view>
+</view>

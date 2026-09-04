@@ -1,0 +1,32 @@
+<!-- 我的页面 -->
+<view class="container">
+  <!-- 用户信息 -->
+  <view class="card user-info">
+    <image class="avatar" src="{{user.avatar || '/images/placeholder.png'}}" />
+    <view>
+      <text class="title">{{user.nickname || '未登录'}}</text>
+      <text class="desc">累计省了 {{user.total_saved || 0}} 元</text>
+    </view>
+  </view>
+
+  <!-- 省钱打卡 -->
+  <view class="card" bindtap="goCheckin">
+    <text>省钱打卡</text>
+    <text class="desc">已连续 {{checkinDays}} 天</text>
+  </view>
+
+  <!-- 我的收藏 -->
+  <view class="card" bindtap="goFavorites">
+    <text>我的收藏</text>
+  </view>
+
+  <!-- 我的发帖 -->
+  <view class="card" bindtap="goMyPosts">
+    <text>我的发帖</text>
+  </view>
+
+  <!-- 设置 -->
+  <view class="card" bindtap="goSettings">
+    <text>设置</text>
+  </view>
+</view>

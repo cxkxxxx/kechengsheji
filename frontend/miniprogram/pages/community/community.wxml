@@ -1,0 +1,17 @@
+<!-- 社区页：用户分享省钱经验 -->
+<view class="container">
+  <!-- 帖子列表 -->
+  <view class="post-list">
+    <view class="card" wx:for="{{posts}}" wx:key="id" bindtap="goPostDetail" data-id="{{item.id}}">
+      <text class="title">{{item.title}}</text>
+      <text class="desc">{{item.content}}</text>
+      <view class="post-meta">
+        <text class="desc">{{item.likes}} 赞</text>
+        <text class="desc">{{item.comments_count}} 评论</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 发帖按钮 -->
+  <view class="fab" bindtap="goCreatePost">+</view>
+</view>

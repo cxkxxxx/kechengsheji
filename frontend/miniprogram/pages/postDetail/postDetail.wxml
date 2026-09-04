@@ -1,0 +1,5 @@
+<!-- 帖子详情页 -->
+<view class="container">
+  <text class="title">{{post.title}}</text>
+  <text>{{post.content}}</text>
+</view>

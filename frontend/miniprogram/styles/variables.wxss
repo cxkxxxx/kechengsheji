@@ -1,0 +1,19 @@
+/* 主题色变量（通过 class 引用，小程序不支持 CSS 变量在 wxss 全局） */
+.theme-bg { background-color: #4B3FE3; }
+.theme-color { color: #4B3FE3; }
+.theme-light-bg { background-color: #F2F7FF; }
+
+/* 间距 */
+.mt-10 { margin-top: 10rpx; }
+.mt-20 { margin-top: 20rpx; }
+.mt-40 { margin-top: 40rpx; }
+.mb-10 { margin-bottom: 10rpx; }
+.mb-20 { margin-bottom: 20rpx; }
+.p-20 { padding: 20rpx; }
+.p-40 { padding: 40rpx; }
+
+/* flex 布局 */
+.flex { display: flex; }
+.flex-col { display: flex; flex-direction: column; }
+.flex-center { display: flex; align-items: center; justify-content: center; }
+.flex-between { display: flex; justify-content: space-between; align-items: center; }

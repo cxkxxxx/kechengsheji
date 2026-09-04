@@ -1,0 +1,3 @@
+.container { display: flex; flex-direction: column; align-items: center; padding-top: 200rpx; }
+.logo { font-size: 48rpx; font-weight: 700; color: #4B3FE3; margin-bottom: 16rpx; }
+.btn-primary { margin-top: 80rpx; width: 80%; background: #4B3FE3; color: #fff; border-radius: 12rpx; }

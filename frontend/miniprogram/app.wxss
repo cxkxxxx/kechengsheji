@@ -1,0 +1,38 @@
+/* 全局样式 */
+page {
+  background-color: #F7F7F8;
+  font-family: -apple-system, "PingFang SC", sans-serif;
+  font-size: 28rpx;
+  color: #171717;
+}
+
+/* 通用卡片样式 */
+.card {
+  background: #FFFFFF;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  margin: 20rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.04);
+}
+
+/* 通用按钮 */
+.btn-primary {
+  background: #4B3FE3;
+  color: #FFFFFF;
+  border-radius: 12rpx;
+  padding: 20rpx 40rpx;
+  text-align: center;
+}
+
+/* 标题 */
+.title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #171717;
+}
+
+/* 灰色描述文字 */
+.desc {
+  font-size: 24rpx;
+  color: #999999;
+}

@@ -1,0 +1,27 @@
+<!-- AI助手页：与省钱Agent对话 -->
+<view class="container">
+  <!-- 对话列表 -->
+  <scroll-view scroll-y class="chat-list" scroll-into-view="{{scrollToId}}" scroll-with-animation>
+    <view wx:for="{{messages}}" wx:key="id"
+          id="msg-{{item.id}}"
+          class="chat-item {{item.role === 'user' ? 'right' : 'left'}}">
+      <view class="bubble {{item.role === 'user' ? 'user-bubble' : 'ai-bubble'}}">
+        <text>{{item.content}}</text>
+      </view>
+      <!-- 工具调用提示 -->
+      <view wx:if="{{item.toolUsed}}" class="tool-tag">使用了 {{item.toolUsed}}</view>
+    </view>
+  </scroll-view>
+
+  <!-- 快捷问题 -->
+  <view class="quick-questions">
+    <view class="quick-q" wx:for="{{quickQuestions}}" wx:key="*this" bindtap="askQuick" data-q="{{item}}">{{item}}</view>
+  </view>
+
+  <!-- 输入框 -->
+  <view class="input-bar">
+    <input value="{{inputValue}}" placeholder="问我任何省钱问题..."
+           bindinput="onInput" bindconfirm="sendMessage" />
+    <view class="send-btn" bindtap="sendMessage">发送</view>
+  </view>
+</view>

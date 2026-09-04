@@ -1,0 +1,9 @@
+<!-- 发帖页 -->
+<view class="container">
+  <input class="input-title" placeholder="标题" bindinput="onTitle" value="{{title}}" />
+  <textarea class="input-content" placeholder="分享你的省钱经验..." bindinput="onContent" value="{{content}}" />
+  <view class="tag-row">
+    <input class="input-tags" placeholder="标签（逗号分隔）" bindinput="onTags" value="{{tags}}" />
+  </view>
+  <button class="btn-primary" bindtap="submitPost">发布</button>
+</view>

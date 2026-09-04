@@ -1,0 +1,34 @@
+<!-- 首页：省钱攻略文章列表 -->
+<view class="container">
+  <!-- 顶部搜索栏 -->
+  <view class="search-bar">
+    <icon type="search" size="14" />
+    <input placeholder="搜索省钱攻略" bindinput="onSearch" />
+  </view>
+
+  <!-- 分类标签 -->
+  <scroll-view scroll-x class="tabs">
+    <view wx:for="{{categories}}" wx:key="*this"
+          class="tab {{currentCategory === item ? 'active' : ''}}"
+          bindtap="switchCategory" data-cat="{{item}}">
+      {{item}}
+    </view>
+  </scroll-view>
+
+  <!-- 文章列表 -->
+  <view class="article-list">
+    <view class="card" wx:for="{{articles}}" wx:key="id" bindtap="goDetail" data-id="{{item.id}}">
+      <image class="cover" src="{{item.cover || '/images/placeholder.png'}}" mode="aspectFill" />
+      <view class="article-info">
+        <text class="title">{{item.title}}</text>
+        <view class="article-meta">
+          <text class="desc">{{item.category}}</text>
+          <text class="desc">{{item.likes}} 赞</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 空状态 -->
+  <view wx:if="{{articles.length === 0}}" class="empty">暂无攻略，敬请期待</view>
+</view>

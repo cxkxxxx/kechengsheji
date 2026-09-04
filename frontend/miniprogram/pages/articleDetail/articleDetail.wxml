@@ -1,0 +1,5 @@
+<!-- 文章详情页 -->
+<view class="container">
+  <text class="title">{{article.title}}</text>
+  <rich-text nodes="{{article.content}}" />
+</view>
