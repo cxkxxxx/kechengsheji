@@ -1,5 +1,8 @@
 <!-- 登录页 -->
 <view class="container">
+  <view class="glow glow-a"></view>
+  <view class="glow glow-b"></view>
+  <view class="logo-badge">省</view>
   <view class="logo">省活攻略</view>
   <text class="desc">用最少的钱，过最好的生活</text>
   <button class="btn-primary" bindtap="handleLogin">微信登录</button>

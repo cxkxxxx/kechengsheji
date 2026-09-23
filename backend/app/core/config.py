@@ -1,4 +1,3 @@
-
 import os
 
 try:
@@ -22,6 +21,11 @@ LLM_API_URL = os.getenv(
 )
 LLM_API_KEY = os.getenv("LLM_API_KEY", "")
 LLM_MODEL = os.getenv("LLM_MODEL", "qwen-turbo")
+# 视觉多模态模型：用于"上传图片让AI看懂"，可通过 .env 覆盖
+LLM_VISION_MODEL = os.getenv("LLM_VISION_MODEL", "glm-4v-flash")
+
+# 图片上传目录（存放用户/聊天里上传的图片）
+UPLOAD_DIR = os.getenv("UPLOAD_DIR", "./static/uploads")
 # 可用模型说明：
 #   qwen-turbo   ：速度快，免费 100万 tokens/月（推荐默认）
 #   qwen-plus    ：能力更强，免费 100万 tokens/月

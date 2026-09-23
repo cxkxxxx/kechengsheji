@@ -1,23 +1,173 @@
-<!-- 账单页：消费记录 + AI分析 -->
+<!-- 账单页：月份切换 + 分类可视化 + 记账/改/删 + AI 联动 -->
 <view class="container">
-  <!-- 月度汇总 -->
-  <view class="card summary">
-    <text class="title">本月支出</text>
-    <text class="amount">{{summary.total || '0.00'}} 元</text>
-    <text class="desc">共 {{summary.count || 0}} 笔</text>
+  <!-- 月份切换 -->
+  <view class="month-bar">
+    <view class="mb-btn" bindtap="shiftMonth" data-d="{{-1}}">‹</view>
+    <picker mode="selector" range="{{months}}" range-key="month" bindchange="pickMonth">
+      <view class="mb-label">
+        <text class="mb-month">{{monthLabel}}</text>
+        <text class="mb-caret">▾</text>
+      </view>
+    </picker>
+    <view class="mb-btn {{isCurrentMonth ? 'disabled' : ''}}" bindtap="shiftMonth" data-d="{{1}}">›</view>
   </view>
 
-  <!-- 账单列表 -->
-  <view class="bill-list">
-    <view class="card bill-item" wx:for="{{bills}}" wx:key="id">
-      <view class="flex-between">
-        <text>{{item.source || item.category}}</text>
-        <text class="amount">{{item.amount}} 元</text>
+  <!-- 支出总览 -->
+  <view class="card hero-card">
+    <view class="flex-between">
+      <view>
+        <text class="desc">总支出</text>
+        <view class="hero-num"><text class="num">{{summary.totalText || '0.00'}}</text><text class="hero-unit">元</text></view>
+        <text class="desc">{{summary.count || 0}} 笔记录<text wx:if="{{analysis.daily_avg}}"> · 日均 {{analysis.daily_avg}} 元</text></text>
       </view>
-      <text class="desc">{{item.category}} · {{item.bill_date}}</text>
+      <view class="hero-side">
+        <view wx:if="{{analysis.diff_pct !== null && analysis.diff_pct !== undefined}}"
+              class="trend {{analysis.diff > 0 ? 'up' : 'down'}}">
+          <text>{{analysis.diff > 0 ? '↑' : '↓'}} {{analysis.diff_pct}}%</text>
+        </view>
+        <text class="desc">{{analysis.prev_month || ''}} 共 {{analysis.prev_total || 0}} 元</text>
+      </view>
+    </view>
+    <view class="hero-actions">
+      <view class="btn-ghost flex-1" bindtap="askAI">让 AI 分析这个月</view>
+      <view class="btn-ghost flex-1" bindtap="seedDemo" wx:if="{{!seeding}}">导入演示账单</view>
+      <view class="btn-ghost flex-1 btn-disabled" wx:else>导入中…</view>
     </view>
   </view>
 
-  <!-- 记一笔按钮 -->
-  <view class="fab" bindtap="addBill">+</view>
+  <!-- 省钱目标（仅当月有意义） -->
+  <view class="card goal-card" wx:if="{{plan && plan.target_amount > 0}}">
+    <view class="flex-between">
+      <text class="title">本月省钱目标</text>
+      <text class="desc">连续打卡 {{plan.checkin_days || 0}} 天</text>
+    </view>
+    <view class="goal-bar">
+      <view class="goal-fill" style="width: {{plan.saved_amount / plan.target_amount * 100 > 100 ? 100 : plan.saved_amount / plan.target_amount * 100}}%"></view>
+    </view>
+    <view class="flex-between">
+      <text class="desc">已省 {{plan.saved_amount || 0}} 元</text>
+      <text class="desc">目标 {{plan.target_amount}} 元</text>
+    </view>
+  </view>
+
+  <!-- 加载中骨架 -->
+  <view class="card" wx:if="{{loading}}">
+    <view class="skeleton" style="height: 260rpx; margin-bottom: 20rpx;"></view>
+    <view class="skeleton" style="height: 32rpx; width: 60%;"></view>
+  </view>
+
+  <!-- AI 可视化 -->
+  <block wx:elif="{{hasBills}}">
+    <view class="section">
+      <text class="section-title">钱都花在哪了</text>
+      <text class="section-sub">{{analysis.month}}</text>
+    </view>
+
+    <view class="card chart-card">
+      <view class="chart-wrap">
+        <canvas canvas-id="billPie" class="pie-canvas"></canvas>
+      </view>
+      <view class="legend">
+        <view class="legend-item" wx:for="{{analysis.categories}}" wx:key="name">
+          <view class="legend-dot" style="background: {{item.color}}"></view>
+          <text class="legend-name">{{item.name}}</text>
+          <view class="legend-track">
+            <view class="legend-fill" style="width: {{item.pct}}%; background: {{item.color}}"></view>
+          </view>
+          <text class="legend-pct num">{{item.pct}}%</text>
+          <text class="legend-amt num">{{item.amount}}元</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="card advice-card">
+      <view class="advice-head">
+        <view class="badge"><view class="badge-dot" style="background: #6D5BFF"></view>AI 省钱建议</view>
+        <view class="advice-refresh" bindtap="refreshAdvice">
+          <text>{{adviceLoading ? '生成中…' : '重新生成'}}</text>
+        </view>
+      </view>
+      <text class="ai-text" wx:if="{{analysis.ai_advice}}">{{analysis.ai_advice}}</text>
+      <text class="ai-text placeholder" wx:else>这份建议按当月真实账单生成，点「重新生成」让 AI 看看你的钱怎么花更省。</text>
+    </view>
+  </block>
+
+  <!-- 空态 -->
+  <view class="empty" wx:elif="{{!loading}}">
+    <text class="empty-emoji">🧾</text>
+    <text class="empty-text">{{month}} 还没有账单</text>
+    <view class="btn-primary empty-btn" bindtap="openAddDialog">记第一笔</view>
+    <text class="desc empty-tip">也可以直接对 AI 助手说「昨晚外卖 32 块」帮你记账</text>
+  </view>
+
+  <!-- 分类明细 -->
+  <view class="section" wx:if="{{summary.categories.length}}">
+    <text class="section-title">分类合计</text>
+  </view>
+  <view class="card card-flat cat-list" wx:if="{{summary.categories.length}}">
+    <view class="cat-row" wx:for="{{summary.categories}}" wx:key="name">
+      <view class="legend-dot" style="background: {{item.color}}"></view>
+      <text class="flex-1">{{item.name}}</text>
+      <text class="cat-amount num">{{item.amount}} 元</text>
+    </view>
+  </view>
+
+  <!-- 账单列表 -->
+  <view class="section" wx:if="{{bills.length}}">
+    <text class="section-title">消费明细</text>
+    <text class="section-sub">点开可修改 · 长按删除</text>
+  </view>
+  <view class="card card-flat bill-list" wx:if="{{bills.length}}">
+    <view class="bill-row" wx:for="{{shownBills}}" wx:key="id"
+          bindtap="openEditDialog" bindlongpress="removeBill" data-id="{{item.id}}">
+      <view class="bill-left">
+        <view class="legend-dot" style="background: {{item.color}}"></view>
+        <view class="bill-text">
+          <text class="bill-name ellipsis">{{item.source || item.category || '未分类'}}</text>
+          <text class="desc">{{item.category}} · {{item.bill_date}}</text>
+        </view>
+      </view>
+      <text class="bill-amount num">-{{item.amount}}</text>
+    </view>
+    <view class="more-btn" wx:if="{{bills.length > previewCount}}" bindtap="toggleBills">
+      {{showAllBills ? '收起' : '展开全部 ' + bills.length + ' 笔'}}
+    </view>
+  </view>
+
+  <view class="list-padding"></view>
+
+  <!-- 记一笔 -->
+  <view class="fab" bindtap="openAddDialog">+</view>
+
+  <!-- 录入 / 编辑弹窗 -->
+  <view class="mask" wx:if="{{showDialog}}" bindtap="closeAddDialog"></view>
+  <view class="dialog" wx:if="{{showDialog}}">
+    <view class="dialog-title">{{dialogMode === 'edit' ? '修改这笔' : '记一笔'}}</view>
+    <view class="form-item">
+      <text class="label">金额</text>
+      <input class="input" type="digit" placeholder="0.00" value="{{form.amount}}" bindinput="onInput" data-field="amount" />
+    </view>
+    <view class="form-item">
+      <text class="label">分类</text>
+      <view class="tags">
+        <view class="tag {{form.category === item ? 'active' : ''}}" wx:for="{{categories}}" wx:key="*this"
+              bindtap="selectCategory" data-cat="{{item}}">{{item}}</view>
+      </view>
+    </view>
+    <view class="form-item">
+      <text class="label">备注</text>
+      <input class="input" placeholder="如：午餐、淘宝订单" value="{{form.source}}" bindinput="onInput" data-field="source" />
+    </view>
+    <view class="form-item">
+      <text class="label">日期</text>
+      <picker mode="date" value="{{form.bill_date}}" bindchange="onDateChange">
+        <view class="picker">{{form.bill_date}}</view>
+      </picker>
+    </view>
+    <view class="dialog-btns">
+      <view class="btn-cancel" bindtap="closeAddDialog">取消</view>
+      <view class="btn-cancel danger" wx:if="{{dialogMode === 'edit'}}" bindtap="deleteFromDialog">删除</view>
+      <view class="btn-confirm" bindtap="submitBill">确定</view>
+    </view>
+  </view>
 </view>

@@ -1,27 +1,70 @@
-<!-- AI助手页：与省钱Agent对话 -->
-<view class="container">
-  <!-- 对话列表 -->
-  <scroll-view scroll-y class="chat-list" scroll-into-view="{{scrollToId}}" scroll-with-animation>
-    <view wx:for="{{messages}}" wx:key="id"
-          id="msg-{{item.id}}"
-          class="chat-item {{item.role === 'user' ? 'right' : 'left'}}">
-      <view class="bubble {{item.role === 'user' ? 'user-bubble' : 'ai-bubble'}}">
-        <text>{{item.content}}</text>
+<!-- AI助手页：多专家对话（流式 + 图片 + 账单联动） -->
+<view class="page">
+  <!-- 专家选择器 -->
+  <scroll-view scroll-x class="agent-bar" enhanced show-scrollbar="{{false}}">
+    <view class="agent-chip {{currentAgent === item.key ? 'active' : ''}}"
+          wx:for="{{agents}}" wx:key="key"
+          bindtap="switchAgent" data-key="{{item.key}}">
+      <text class="agent-emoji">{{item.emoji}}</text>
+      <view class="agent-text">
+        <text class="agent-name">{{item.name}}</text>
+        <text class="agent-tag">{{item.tag}}</text>
       </view>
-      <!-- 工具调用提示 -->
-      <view wx:if="{{item.toolUsed}}" class="tool-tag">使用了 {{item.toolUsed}}</view>
     </view>
   </scroll-view>
 
-  <!-- 快捷问题 -->
-  <view class="quick-questions">
-    <view class="quick-q" wx:for="{{quickQuestions}}" wx:key="*this" bindtap="askQuick" data-q="{{item}}">{{item}}</view>
-  </view>
+  <!-- 对话区 -->
+  <scroll-view scroll-y class="chat-list" scroll-into-view="{{scrollToId}}" scroll-with-animation>
+    <!-- 开场引导 -->
+    <view class="welcome" wx:if="{{messages.length === 0}}">
+      <text class="welcome-emoji">👋</text>
+      <text class="welcome-title">我是{{currentAgent === 'coupon' ? '优惠情报员' : currentAgent === 'budget' ? '理财管家' : '抠门达人'}}</text>
+      <text class="welcome-desc">可以问我怎么省、让我帮你记账，或点下面的问题试试</text>
+      <view class="welcome-qs">
+        <view class="welcome-q" wx:for="{{quickQuestions}}" wx:key="*this"
+              bindtap="askQuick" data-q="{{item}}">{{item}}</view>
+      </view>
+    </view>
 
-  <!-- 输入框 -->
-  <view class="input-bar">
-    <input value="{{inputValue}}" placeholder="问我任何省钱问题..."
-           bindinput="onInput" bindconfirm="sendMessage" />
-    <view class="send-btn" bindtap="sendMessage">发送</view>
+    <view wx:for="{{messages}}" wx:key="id"
+          id="msg-{{item.id}}"
+          class="chat-item {{item.role === 'user' ? 'right' : 'left'}}">
+      <view class="avatar" wx:if="{{item.role !== 'user'}}">
+        <text>{{currentAgent === 'coupon' ? '🧧' : currentAgent === 'budget' ? '📊' : '✨'}}</text>
+      </view>
+      <view class="msg-col">
+        <image wx:if="{{item.image}}" src="{{item.image}}" mode="aspectFill" class="msg-img" />
+        <view class="bubble {{item.role === 'user' ? 'user-bubble' : 'ai-bubble'}}">
+          <text wx:if="{{item.content}}" user-select>{{item.content}}</text>
+          <view wx:else class="thinking">
+            <view class="dot"></view><view class="dot"></view><view class="dot"></view>
+            <text class="thinking-text">正在翻你的账单和攻略…</text>
+          </view>
+        </view>
+        <view class="tool-tag" wx:if="{{item.toolUsed && item.toolUsed !== 'chat' && item.toolUsed !== 'error'}}">
+          <text>🔧 {{item.toolUsed}}</text>
+        </view>
+      </view>
+    </view>
+    <view class="chat-bottom-pad"></view>
+  </scroll-view>
+
+  <!-- 快捷问题（有对话后收进一行，避免挤掉聊天区） -->
+  <scroll-view scroll-x class="quick-bar" wx:if="{{messages.length > 0}}" enhanced show-scrollbar="{{false}}">
+    <view class="quick-q" wx:for="{{quickQuestions}}" wx:key="*this" bindtap="askQuick" data-q="{{item}}">{{item}}</view>
+  </scroll-view>
+
+  <!-- 输入区 -->
+  <view class="input-area">
+    <view wx:if="{{image}}" class="img-preview">
+      <image src="{{image.url}}" mode="aspectFill" class="img-preview-img"></image>
+      <view class="img-remove" catchtap="removeImage">×</view>
+    </view>
+    <view class="input-bar">
+      <view class="img-btn {{uploading ? 'busy' : ''}}" bindtap="onChooseImage">{{uploading ? '…' : '📷'}}</view>
+      <input value="{{inputValue}}" placeholder="{{placeholder}}" placeholder-class="ph"
+             confirm-type="send" bindinput="onInput" bindconfirm="sendMessage" />
+      <view class="send-btn {{sending ? 'busy' : ''}}" bindtap="sendMessage">{{sending ? '思考中' : '发送'}}</view>
+    </view>
   </view>
 </view>

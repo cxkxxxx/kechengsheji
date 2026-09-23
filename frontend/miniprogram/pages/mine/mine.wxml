@@ -1,32 +1,82 @@
-<!-- 我的页面 -->
+<!-- 我的：账号信息 + 数据概览 + 收藏/发帖 -->
 <view class="container">
   <!-- 用户信息 -->
   <view class="card user-info">
-    <image class="avatar" src="{{user.avatar || '/images/placeholder.png'}}" />
-    <view>
+    <image class="avatar" src="{{user.avatar || '/images/logo.jpg'}}" mode="aspectFill" />
+    <view class="user-text">
       <text class="title">{{user.nickname || '未登录'}}</text>
-      <text class="desc">累计省了 {{user.total_saved || 0}} 元</text>
+      <text class="desc">累计省下 {{savedText}} 元 · 月度目标 {{goalText}}</text>
     </view>
   </view>
 
-  <!-- 省钱打卡 -->
-  <view class="card" bindtap="goCheckin">
-    <text>省钱打卡</text>
-    <text class="desc">已连续 {{checkinDays}} 天</text>
+  <!-- 数据概览 -->
+  <view class="stat-row">
+    <view class="stat card-flat" bindtap="toggleFavorites">
+      <text class="stat-num num">{{favList.length}}</text>
+      <text class="stat-label">我的收藏</text>
+    </view>
+    <view class="stat card-flat" bindtap="toggleMyPosts">
+      <text class="stat-num num">{{myPosts.length}}</text>
+      <text class="stat-label">我的发帖</text>
+    </view>
+    <view class="stat card-flat" bindtap="goBill">
+      <text class="stat-num num">🧾</text>
+      <text class="stat-label">查账单</text>
+    </view>
+  </view>
+
+  <!-- 常用入口 -->
+  <view class="section"><text class="section-title">常用功能</text></view>
+  <view class="card card-flat menu-group">
+    <view class="list-row" bindtap="goBill">
+      <text class="row-ico">📊</text>
+      <text class="flex-1">省钱目标与账单分析</text>
+      <text class="arrow">›</text>
+    </view>
+    <view class="list-row" bindtap="goAssistant">
+      <text class="row-ico">✨</text>
+      <text class="flex-1">问问 AI 助手</text>
+      <text class="arrow">›</text>
+    </view>
+    <view class="list-row" bindtap="goSettings">
+      <text class="row-ico">⚙️</text>
+      <text class="flex-1">设置</text>
+      <text class="arrow">›</text>
+    </view>
   </view>
 
   <!-- 我的收藏 -->
-  <view class="card" bindtap="goFavorites">
-    <text>我的收藏</text>
+  <view class="section" bindtap="toggleFavorites">
+    <text class="section-title">我的收藏</text>
+    <text class="section-sub">{{showFav ? '收起' : '展开'}} ›</text>
+  </view>
+  <view class="card card-flat sub-list" wx:if="{{showFav}}">
+    <view class="list-row" wx:for="{{favList}}" wx:key="id"
+          bindtap="openFavorite" data-id="{{item.target_id}}" data-type="{{item.target_type}}">
+      <text class="chip chip-sm">{{item.typeLabel}}</text>
+      <text class="flex-1 ellipsis sub-name">内容 #{{item.target_id}}</text>
+      <text class="sub-time">{{item.timeText}}</text>
+    </view>
+    <view class="empty empty-sm" wx:if="{{favList.length === 0}}">
+      <text class="empty-text">还没有收藏，去攻略页看看</text>
+    </view>
   </view>
 
   <!-- 我的发帖 -->
-  <view class="card" bindtap="goMyPosts">
-    <text>我的发帖</text>
+  <view class="section" bindtap="toggleMyPosts">
+    <text class="section-title">我的发帖</text>
+    <text class="section-sub">{{showPosts ? '收起' : '展开'}} ›</text>
+  </view>
+  <view class="card card-flat sub-list" wx:if="{{showPosts}}">
+    <view class="list-row" wx:for="{{myPosts}}" wx:key="id" bindtap="goPostDetail" data-id="{{item.id}}">
+      <text class="flex-1 ellipsis sub-name">{{item.title}}</text>
+      <text class="sub-time">{{item.timeText}}</text>
+    </view>
+    <view class="empty empty-sm" wx:if="{{myPosts.length === 0}}">
+      <text class="empty-text">还没发过帖，去社区分享一条经验吧</text>
+    </view>
   </view>
 
-  <!-- 设置 -->
-  <view class="card" bindtap="goSettings">
-    <text>设置</text>
-  </view>
+  <view class="logout" bindtap="logout">退出登录</view>
+  <view style="height: 60rpx;"></view>
 </view>

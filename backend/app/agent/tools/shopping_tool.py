@@ -4,6 +4,7 @@ from app.agent.llm import call_llm_simple
 
 @register_tool(
     name="shopping_advice",
+    final=True,
     description="给出购物建议，包括品牌对比、省钱时机、避坑提示",
     parameters={
         "product": {

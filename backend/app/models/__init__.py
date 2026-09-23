@@ -9,4 +9,6 @@ from app.models.favorite import Favorite
 from app.models.budget_plan import BudgetPlan
 from app.models.coupon_activity import CouponActivity
 from app.models.price_history import PriceHistory
+from app.models.post_like import PostLike
 from app.core.database import Base
+from app.models.admin import Admin

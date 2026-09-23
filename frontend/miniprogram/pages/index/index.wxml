@@ -1,34 +1,81 @@
-<!-- 首页：省钱攻略文章列表 -->
+<!-- 首页：省钱攻略列表（首条大图 + 列表紧凑排布） -->
 <view class="container">
-  <!-- 顶部搜索栏 -->
-  <view class="search-bar">
-    <icon type="search" size="14" />
-    <input placeholder="搜索省钱攻略" bindinput="onSearch" />
+  <!-- 顶部渐变头部 -->
+  <view class="hero">
+    <view class="hero-head">
+      <text class="hero-title">省钱攻略</text>
+      <text class="hero-sub">能省一块是一块</text>
+    </view>
+    <view class="search-bar">
+      <icon class="search-icon" type="search" size="14" color="#ffffff" />
+      <input placeholder-class="search-ph" placeholder="搜索省钱攻略" value="{{keyword}}"
+             bindinput="onSearch" confirm-type="search" />
+      <text class="search-clear" wx:if="{{keyword}}" catchtap="clearSearch">×</text>
+    </view>
+    <scroll-view scroll-x class="tabs" enhanced show-scrollbar="{{false}}">
+      <view wx:for="{{categories}}" wx:key="*this"
+            class="tab {{currentCategory === item ? 'active' : ''}}"
+            bindtap="switchCategory" data-cat="{{item}}">
+        {{item}}
+      </view>
+    </scroll-view>
   </view>
 
-  <!-- 分类标签 -->
-  <scroll-view scroll-x class="tabs">
-    <view wx:for="{{categories}}" wx:key="*this"
-          class="tab {{currentCategory === item ? 'active' : ''}}"
-          bindtap="switchCategory" data-cat="{{item}}">
-      {{item}}
-    </view>
-  </scroll-view>
-
-  <!-- 文章列表 -->
-  <view class="article-list">
-    <view class="card" wx:for="{{articles}}" wx:key="id" bindtap="goDetail" data-id="{{item.id}}">
-      <image class="cover" src="{{item.cover || '/images/placeholder.png'}}" mode="aspectFill" />
-      <view class="article-info">
-        <text class="title">{{item.title}}</text>
-        <view class="article-meta">
-          <text class="desc">{{item.category}}</text>
-          <text class="desc">{{item.likes}} 赞</text>
+  <!-- 列表 -->
+  <scroll-view scroll-y class="refresh-list" refresher-enabled
+               refresher-triggered="{{refreshing}}"
+               bindrefresherrefresh="onRefresherRefresh">
+    <!-- 加载骨架 -->
+    <block wx:if="{{loading}}">
+      <view class="card sk-card" wx:for="{{[1,2,3]}}" wx:key="*this">
+        <view class="skeleton sk-thumb"></view>
+        <view class="sk-lines">
+          <view class="skeleton" style="height: 30rpx; width: 70%;"></view>
+          <view class="skeleton" style="height: 24rpx; width: 92%; margin-top: 14rpx;"></view>
+          <view class="skeleton" style="height: 24rpx; width: 45%; margin-top: 14rpx;"></view>
         </view>
       </view>
-    </view>
-  </view>
+    </block>
 
-  <!-- 空状态 -->
-  <view wx:if="{{articles.length === 0}}" class="empty">暂无攻略，敬请期待</view>
+    <block wx:elif="{{filtered.length}}">
+      <!-- 首条大图 -->
+      <view class="feature" bindtap="goDetail" data-id="{{filtered[0].id}}">
+        <image wx:if="{{filtered[0].cover}}" class="feature-cover" src="{{filtered[0].cover}}" mode="aspectFill" />
+        <view wx:else class="feature-cover feature-fallback"><text>{{filtered[0].category}}</text></view>
+        <view class="feature-body">
+          <view class="chip">{{filtered[0].category}}</view>
+          <text class="feature-title ellipsis-2">{{filtered[0].title}}</text>
+          <text class="desc ellipsis-2">{{filtered[0].content}}</text>
+          <view class="meta">
+            <text>{{filtered[0].author}}</text>
+            <text>❤ {{filtered[0].likes}} · 👁 {{filtered[0].views}}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 其余紧凑列表 -->
+      <view class="article-list">
+        <view class="card art-row card-tap" wx:for="{{filtered}}" wx:key="id" wx:if="{{index > 0}}"
+              bindtap="goDetail" data-id="{{item.id}}">
+          <image wx:if="{{item.cover}}" class="art-thumb" src="{{item.cover}}" mode="aspectFill" />
+          <view wx:else class="art-thumb art-fallback"><text>{{item.category}}</text></view>
+          <view class="art-info">
+            <text class="art-title ellipsis-2">{{item.title}}</text>
+            <view class="art-meta">
+              <text class="chip chip-sm">{{item.category}}</text>
+              <text class="desc">❤ {{item.likes}} · 👁 {{item.views}}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+      <view class="list-tip">下拉看看还没刷到的攻略</view>
+    </block>
+
+    <view wx:else class="empty">
+      <text class="empty-emoji">🔍</text>
+      <text class="empty-text">没有匹配的攻略</text>
+      <text class="desc empty-tip">换个分类或关键词试试</text>
+    </view>
+    <view class="list-padding"></view>
+  </scroll-view>
 </view>

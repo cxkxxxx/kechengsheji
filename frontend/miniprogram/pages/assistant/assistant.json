@@ -1,1 +1,5 @@
-{"navigationBarTitleText": "AI省钱助手"}
+{
+  "navigationBarTitleText": "AI省钱助手",
+  "enablePullDownRefresh": true,
+  "backgroundTextStyle": "dark"
+}

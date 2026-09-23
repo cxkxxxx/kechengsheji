@@ -4,6 +4,7 @@ from app.agent.llm import call_llm_simple
 
 @register_tool(
     name="generate_recipe",
+    final=True,
     description="根据用户提供的现有食材，生成省钱的菜谱并估算成本",
     parameters={
         "ingredients": {

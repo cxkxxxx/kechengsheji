@@ -10,6 +10,12 @@ class BillCreate(BaseModel):
     source: str = ""
     bill_date: date
 
+class BillUpdate(BaseModel):
+    amount: float | None = None
+    category: str | None = None
+    source: str | None = None
+    bill_date: date | None = None
+
 class BillResponse(BaseModel):
     id: int
     amount: float

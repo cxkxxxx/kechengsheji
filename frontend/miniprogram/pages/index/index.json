@@ -1,1 +1,5 @@
-{"navigationBarTitleText": "省钱攻略"}
+{
+  "navigationBarTitleText": "省钱攻略",
+  "enablePullDownRefresh": true,
+  "backgroundTextStyle": "dark"
+}

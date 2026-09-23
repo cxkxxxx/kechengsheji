@@ -1,7 +1,7 @@
-/* 主题色变量（通过 class 引用，小程序不支持 CSS 变量在 wxss 全局） */
-.theme-bg { background-color: #4B3FE3; }
-.theme-color { color: #4B3FE3; }
-.theme-light-bg { background-color: #F2F7FF; }
+/* 主题色（小程序 wxss 不支持全局 CSS 变量，用 class 引用） */
+.theme-bg { background: linear-gradient(135deg, #6D5BFF, #3B82F6); }
+.theme-color { color: #5046E5; }
+.theme-light-bg { background: #EDF0FF; }
 
 /* 间距 */
 .mt-10 { margin-top: 10rpx; }

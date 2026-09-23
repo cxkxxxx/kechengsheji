@@ -1,5 +1,40 @@
 <!-- 文章详情页 -->
 <view class="container">
-  <text class="title">{{article.title}}</text>
-  <rich-text nodes="{{article.content}}" />
+  <view class="article">
+    <text class="title">{{article.title}}</text>
+    <view class="meta">
+      <text>{{article.author}}</text>
+      <text>{{article.views || 0}} 阅读</text>
+    </view>
+    <rich-text class="content" nodes="{{article.content}}" />
+  </view>
+
+  <!-- 操作栏 -->
+  <view class="actions">
+    <view class="action {{liked ? 'active' : ''}}" bindtap="likeArticle">
+      <text>{{liked ? '已赞' : '点赞'}} ({{article.likes || 0}})</text>
+    </view>
+    <view class="action {{favorited ? 'active' : ''}}" bindtap="toggleFavorite">
+      <text>{{favorited ? '已收藏' : '收藏'}}</text>
+    </view>
+  </view>
+
+  <!-- 评论区 -->
+  <view class="comments-section">
+    <text class="section-title">评论 ({{comments.length}})</text>
+    <view class="comment-item" wx:for="{{comments}}" wx:key="id">
+      <text class="comment-user">用户{{item.user_id}}</text>
+      <text class="comment-content">{{item.content}}</text>
+      <text class="comment-time">{{item.created_at}}</text>
+    </view>
+    <view class="empty" wx:if="{{comments.length === 0}}">
+      <text>暂无评论，快来抢沙发</text>
+    </view>
+  </view>
+
+  <!-- 底部评论输入 -->
+  <view class="comment-bar">
+    <input class="comment-input" placeholder="写评论..." value="{{commentText}}" bindinput="onCommentInput" confirm-type="send" bindconfirm="submitComment" />
+    <view class="send-btn" bindtap="submitComment">发送</view>
+  </view>
 </view>
