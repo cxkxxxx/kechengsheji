@@ -32,7 +32,10 @@ function request(url, method = 'GET', data = {}, force = false) {
         'Authorization': token ? 'Bearer ' + token : ''
       },
       success(res) {
-        if (res.statusCode === 401) {
+        // 登录接口自己的 401 是「昵称或密码不对」，不是登录态过期。
+        // 当成过期会把用户踢回登录页并提示重新登录，密码错了永远改不掉。
+        const isAuthCall = url.indexOf('/auth/login') === 0 || url.indexOf('/auth/register') === 0
+        if (res.statusCode === 401 && !isAuthCall) {
           app.globalData.token = ''
           app.globalData.userInfo = null
           wx.removeStorageSync('token')
@@ -49,8 +52,9 @@ function request(url, method = 'GET', data = {}, force = false) {
         } else {
           const hit = cache[cacheKey]
           if (hit) { resolve(hit.data); return }
-          wx.showToast({ title: (res.data && res.data.message) || '请求失败', icon: 'none' })
-          reject(new Error((res.data && res.data.message) || '请求失败'))
+          const msg = (res.data && (res.data.message || res.data.detail)) || '请求失败'
+          wx.showToast({ title: msg, icon: 'none' })
+          reject(new Error(msg))
         }
       },
       fail(err) {

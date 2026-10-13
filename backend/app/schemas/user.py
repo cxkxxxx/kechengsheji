@@ -8,7 +8,12 @@ class UserCreate(BaseModel):
     avatar: str = ""
 
 class UserRegister(BaseModel):
-    # 注册请求（开发阶段用昵称+密码）
+    # 注册：昵称 + 密码，密码会落 password_hash
+    nickname: str
+    password: str
+
+class UserLogin(BaseModel):
+    # 昵称密码登录
     nickname: str
     password: str
 

@@ -1,0 +1,73 @@
+<!-- 投稿攻略：分类 + 标题 + 正文 + 封面/配图，提交后进审核 -->
+<view class="container">
+  <view class="ac-head">
+    <view class="hero">
+      <text class="hero-title">投稿攻略</text>
+      <text class="hero-sub">写清楚「在哪个平台、怎么操作、省了多少」，通过率最高</text>
+    </view>
+  </view>
+
+  <view class="card">
+    <text class="label">分类</text>
+    <view class="tags">
+      <view class="tag {{category === item ? 'active' : ''}}" wx:for="{{cats}}" wx:key="*this"
+            bindtap="pickCat" data-i="{{index}}">{{item}}</view>
+    </view>
+  </view>
+
+  <view class="card">
+    <input class="ac-title" placeholder="标题，例如：周三用这张券点外卖，一顿省 18"
+           placeholder-class="ph" maxlength="50" bindinput="onTitle" value="{{title}}" />
+    <view class="divider"></view>
+    <textarea class="ac-content" placeholder="正文：把步骤、金额、平台、有效期写清楚…"
+              placeholder-class="ph" maxlength="20000" bindinput="onContent" value="{{content}}" />
+    <view class="ac-count num">{{content.length}}/20000</view>
+  </view>
+
+  <view class="card">
+    <view class="flex-between">
+      <text class="label" style="margin:0">图片<text class="desc" style="margin-left:12rpx">{{images.length}}/{{maxImages}}</text></text>
+      <text class="desc">第一张自动作为封面</text>
+    </view>
+    <view class="uploader">
+      <view class="up-cell" wx:for="{{shown}}" wx:key="*this">
+        <image src="{{item}}" mode="aspectFill" bindtap="previewImage" data-i="{{index}}" />
+        <view class="up-cover" wx:if="{{index === 0}}">封面</view>
+        <view class="up-set" wx:else catchtap="setCover" data-i="{{index}}">设为封面</view>
+        <view class="up-del" catchtap="removeImage" data-i="{{index}}">
+          <text class="ic ic-close ic-sm"></text>
+        </view>
+      </view>
+      <view class="up-add" wx:if="{{images.length < maxImages}}" bindtap="addImages">
+        <text class="ic {{uploading ? 'ic-clock' : 'ic-image'}}"></text>
+        <text>{{uploading ? '上传中' : '添加图片'}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="ac-foot">
+    <button class="btn-primary {{(uploading || submitting) ? 'btn-disabled' : ''}}" bindtap="submit">
+      {{uploading ? '图片上传中…' : submitting ? '提交中…' : '提交审核'}}
+    </button>
+    <text class="ac-tip">提交后由管理员审核，通过后出现在攻略列表</text>
+  </view>
+
+  <block wx:if="{{mine.length}}">
+    <view class="section">
+      <text class="section-title">我的投稿</text>
+      <text class="section-sub">共 {{mine.length}} 篇</text>
+    </view>
+    <view class="card mine-row" wx:for="{{mine}}" wx:key="id" bindtap="goDetail"
+          data-id="{{item.id}}" data-status="{{item.status}}">
+      <view class="flex-1">
+        <text class="mine-title ellipsis-2">{{item.title}}</text>
+        <view class="mine-meta">
+          <text class="chip chip-sm chip-grey">{{item.category}}</text>
+          <text class="chip chip-sm {{item.statusCls}}">{{item.statusText}}</text>
+          <text class="desc">{{item.created_at}}</text>
+        </view>
+      </view>
+      <text class="ic ic-arrow arrow"></text>
+    </view>
+  </block>
+</view>

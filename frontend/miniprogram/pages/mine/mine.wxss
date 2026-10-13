@@ -1,32 +1,58 @@
-/* 我的 */
-.user-info { display: flex; align-items: center; margin: 24rpx 24rpx 20rpx; background: linear-gradient(135deg, var(--brand-1) 0%, var(--brand-2) 100%); border: none; box-shadow: 0 14rpx 40rpx rgba(79, 90, 255, 0.32); }
-.avatar { width: 112rpx; height: 112rpx; border-radius: 50%; background: rgba(255, 255, 255, 0.3); border: 6rpx solid rgba(255, 255, 255, 0.55); box-shadow: 0 8rpx 20rpx rgba(0, 0, 0, 0.2); flex-shrink: 0; }
-.user-text { display: flex; flex-direction: column; margin-left: 24rpx; min-width: 0; }
-.user-text .title { font-size: 34rpx; font-weight: 700; color: #fff; }
-.user-text .desc { font-size: 25rpx; color: rgba(255, 255, 255, 0.86); margin-top: 8rpx; }
+/* 我的：通用件（hero / list-row / card / chip / ic）在 app.wxss */
+.container { padding-bottom: var(--s-6); }
 
-/* 概览三格 */
-.stat-row { display: flex; margin: 0 24rpx; }
-.stat { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 26rpx 8rpx; margin: 0 10rpx; border-radius: 24rpx; background: #fff; box-shadow: var(--shadow); border: 1rpx solid rgba(37, 63, 183, 0.05); }
-.stat:first-child { margin-left: 0; }
-.stat:last-child { margin-right: 0; }
-.stat-num { font-size: 38rpx; font-weight: 800; color: var(--brand); line-height: 1.2; }
-.stat-label { font-size: 23rpx; color: var(--muted); margin-top: 6rpx; }
-.stat:active { transform: scale(0.98); }
+/* —— 头区 —— */
+.hero { padding-bottom: var(--s-4); }
+.avatar {
+  width: 108rpx; height: 108rpx; border-radius: 50%; flex: none;
+  background: rgba(255, 255, 255, .18); border: 3rpx solid rgba(255, 255, 255, .5);
+  box-shadow: var(--sh-2);
+}
+.user-text { margin-left: var(--s-3); min-width: 0; }
+.hero-sub { color: rgba(255, 255, 255, .8); opacity: 1; }
 
-/* 入口列表 */
-.menu-group { padding: 0; overflow: hidden; margin-top: 0; }
-.row-ico { width: 52rpx; font-size: 30rpx; margin-right: 10rpx; }
-.sub-list { padding: 0; overflow: hidden; margin-top: 0; }
-.sub-name { font-size: 28rpx; margin: 0 16rpx; }
-.sub-time { font-size: 22rpx; color: var(--muted); flex-shrink: 0; }
-.chip-sm { font-size: 20rpx; padding: 3rpx 16rpx; flex-shrink: 0; }
-.empty-sm { padding: 40rpx 0; }
+/* —— 概览三格 —— */
+.stat-row { display: flex; gap: var(--s-2); margin-top: var(--s-5); }
+.stat {
+  flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-height: 136rpx; padding: var(--s-3) var(--s-1); border-radius: var(--r-sm);
+  background: rgba(255, 255, 255, .13); transition: background .16s ease;
+}
+.stat:active { background: rgba(255, 255, 255, .24); }
+.stat-num { font-size: 40rpx; font-weight: 700; color: #fff; line-height: 1.2; }
+.stat-ic { margin-bottom: 2rpx; }
+.stat-label { font-size: 22rpx; color: rgba(255, 255, 255, .76); margin-top: 6rpx; }
+
+/* —— 卡片里的列表：去掉 .card 自带内边距，让 .list-row 自己控制 —— */
+.pad-0 { padding: 0; overflow: hidden; }
+.row-name { font-size: 29rpx; color: var(--ink); }
+.list-row .chip { flex: none; }
+.sub-time { font-size: 22rpx; color: var(--muted); flex: none; margin-left: var(--s-2); }
+
+/* —— 展开/收起 —— */
+.sec-more { display: flex; align-items: center; gap: 6rpx; }
+.caret { opacity: .55; transition: transform .18s ease; }
+.caret.is-open { transform: rotate(90deg); }
+
+/* 攻略投稿行：带封面缩略图，和纯文字的社区帖行区分开 */
+.sub-cover { width: 108rpx; height: 78rpx; border-radius: var(--r-xs); flex: none; background: var(--fill); }
+.sub-cover-empty { display: flex; align-items: center; justify-content: center; background: var(--brand-soft); }
+.sub-text { padding-left: var(--s-2); }
+.sub-text .row-name { display: block; }
+.sub-meta { display: flex; align-items: center; gap: var(--s-1); margin-top: 8rpx; }
+.sub-meta .sub-time { margin-left: 0; }
+
+/* —— 卡片内空态 —— */
+.empty-sm { padding: 56rpx 0; }
+.empty-sm .empty-ic { width: 64rpx; height: 64rpx; background-size: 64rpx 64rpx; }
 .empty-sm .empty-text { font-size: 25rpx; }
 
+/* —— 退出登录 —— */
 .logout {
-  margin: 40rpx 24rpx 0; text-align: center; padding: 26rpx;
-  color: var(--danger); border-radius: 26rpx; font-size: 29rpx;
-  background: #FFF7F9; border: 1rpx solid #FBE3EA;
+  display: flex; align-items: center; justify-content: center; gap: var(--s-2);
+  margin: var(--s-5) var(--gap) 0; padding: 26rpx;
+  color: var(--danger); font-size: 29rpx; font-weight: 500;
+  background: var(--card); border: 1rpx solid var(--line); border-radius: var(--r-md);
+  box-shadow: var(--sh-1);
 }
-.logout:active { background: #FFEFF2; }
+.logout:active { background: var(--fill); }

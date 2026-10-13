@@ -1,9 +1,35 @@
-<!-- 登录页 -->
+<!-- 登录页：微信一键登录（服务端配好才显示）+ 昵称密码 -->
 <view class="container">
   <view class="glow glow-a"></view>
   <view class="glow glow-b"></view>
-  <view class="logo-badge">省</view>
-  <view class="logo">省活攻略</view>
-  <text class="desc">用最少的钱，过最好的生活</text>
-  <button class="btn-primary" bindtap="handleLogin">微信登录</button>
+
+  <view class="brand">
+    <view class="logo-badge">省</view>
+    <text class="logo">省活攻略</text>
+    <text class="slogan">用最少的钱，过最好的生活</text>
+  </view>
+
+  <button wx:if="{{wxAvailable}}" class="btn-primary btn-login" bindtap="wxLogin">
+    <view class="ic ic-sm ic-user"></view><text>微信一键登录</text>
+  </button>
+
+  <view class="panel">
+    <view class="panel-tabs">
+      <view class="panel-tab {{tab === 'login' ? 'active' : ''}}" bindtap="switchTab" data-tab="login">登录</view>
+      <view class="panel-tab {{tab === 'register' ? 'active' : ''}}" bindtap="switchTab" data-tab="register">注册</view>
+    </view>
+    <view class="panel-body">
+      <input class="field" placeholder="昵称" placeholder-class="field-ph" maxlength="20"
+             value="{{nickname}}" bindinput="onField" data-field="nickname" />
+      <input class="field" placeholder="{{tab === 'register' ? '设置密码，至少 6 位' : '密码'}}"
+             placeholder-class="field-ph" password value="{{password}}"
+             bindinput="onField" data-field="password" />
+      <view class="btn-submit {{busy ? 'btn-disabled' : ''}}" bindtap="handleLogin">
+        {{busy ? '请稍候…' : (tab === 'register' ? '注册并登录' : '登录')}}
+      </view>
+      <text class="panel-tip" wx:if="{{!wxAvailable}}">
+        服务端未配置 WX_APPID / WX_SECRET，微信登录暂不可用；昵称密码登录后账号固定，发帖和收藏都会跟着走
+      </text>
+    </view>
+  </view>
 </view>

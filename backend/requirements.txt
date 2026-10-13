@@ -12,3 +12,8 @@ pydantic            # 数据验证
 httpx               # 异步 HTTP 请求（调大模型 API）
 python-dotenv       # .env 环境变量读取
 chromadb            # 本地向量数据库（RAG 知识库）
+
+# 商品比价（京东/天猫实时价）。它依赖的 mcp 必须锁在 2 以下：
+# mcp 2.x 删掉了 mcp.server.fastmcp，装了 2.x 会让 best_price_mcp 直接导入失败。
+best-price-mcp==0.5.0
+mcp<2

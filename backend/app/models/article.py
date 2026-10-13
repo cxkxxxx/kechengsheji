@@ -1,5 +1,4 @@
 
-
 from sqlalchemy import Column, Integer, String, Text, DateTime, func
 from app.core.database import Base
 
@@ -11,7 +10,10 @@ class Article(Base):
     content = Column(Text, nullable=False)                 # 正文（Markdown）
     category = Column(String(50), default="综合")          # 分类：餐饮/购物/生活/羊毛
     cover = Column(String(500))                            # 封面图 URL
-    author = Column(String(50), default="抠门达人")        # 作者
+    images = Column(Text)                                  # 正文配图（JSON 数组字符串）
+    author = Column(String(50), default="官方")            # 作者
+    user_id = Column(Integer, default=0)                   # 投稿人，0=管理端自己发的
+    status = Column(String(20), default="approved")        # pending/approved/rejected
     likes = Column(Integer, default=0)                     # 点赞数
     views = Column(Integer, default=0)                     # 浏览量
     created_at = Column(DateTime, server_default=func.now())

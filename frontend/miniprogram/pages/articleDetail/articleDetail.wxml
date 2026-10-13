@@ -1,40 +1,73 @@
 <!-- 文章详情页 -->
 <view class="container">
-  <view class="article">
-    <text class="title">{{article.title}}</text>
+  <!-- 封面 -->
+  <image wx:if="{{cover}}" class="cover" src="{{cover}}" mode="aspectFill" />
+
+  <!-- 正文 -->
+  <view class="card art-card">
+    <text class="chip chip-grey" wx:if="{{article.category}}">{{article.category}}</text>
+    <text class="art-title">{{article.title}}</text>
     <view class="meta">
-      <text>{{article.author}}</text>
-      <text>{{article.views || 0}} 阅读</text>
+      <view class="meta-item"><view class="ic ic-sm ic-user"></view><text>{{article.author}}</text></view>
+      <view class="meta-item"><view class="ic ic-sm ic-eye"></view><text class="num">{{article.views || 0}}</text></view>
+      <view class="meta-item"><view class="ic ic-sm ic-heart"></view><text class="num">{{article.likes || 0}}</text></view>
     </view>
-    <rich-text class="content" nodes="{{article.content}}" />
+
+    <view class="divider"></view>
+
+    <text class="content">{{article.content}}</text>
+
+    <!-- 正文配图：后端给 /static/ 相对地址，.js 里已拼好域名并截到 9 张 -->
+    <view class="imgs imgs-{{gallery.length}}" wx:if="{{gallery.length}}">
+      <view class="img-cell" wx:for="{{gallery}}" wx:key="*this">
+        <image src="{{item}}" mode="aspectFill" lazy-load />
+      </view>
+    </view>
   </view>
 
   <!-- 操作栏 -->
-  <view class="actions">
-    <view class="action {{liked ? 'active' : ''}}" bindtap="likeArticle">
-      <text>{{liked ? '已赞' : '点赞'}} ({{article.likes || 0}})</text>
+  <view class="acts">
+    <view class="act {{liked ? 'on' : ''}}" bindtap="likeArticle">
+      <view class="ic ic-sm {{liked ? 'ic-heart-on' : 'ic-heart'}}"></view>
+      <text class="num act-num">{{article.likes || 0}}</text>
+      <text class="act-label">{{liked ? '已赞' : '点赞'}}</text>
     </view>
-    <view class="action {{favorited ? 'active' : ''}}" bindtap="toggleFavorite">
-      <text>{{favorited ? '已收藏' : '收藏'}}</text>
+    <view class="act {{favorited ? 'on' : ''}}" bindtap="toggleFavorite">
+      <view class="ic ic-sm {{favorited ? 'ic-check' : 'ic-plus'}}"></view>
+      <text class="act-label">{{favorited ? '已收藏' : '收藏'}}</text>
     </view>
   </view>
 
   <!-- 评论区 -->
-  <view class="comments-section">
-    <text class="section-title">评论 ({{comments.length}})</text>
-    <view class="comment-item" wx:for="{{comments}}" wx:key="id">
-      <text class="comment-user">用户{{item.user_id}}</text>
-      <text class="comment-content">{{item.content}}</text>
-      <text class="comment-time">{{item.created_at}}</text>
-    </view>
-    <view class="empty" wx:if="{{comments.length === 0}}">
-      <text>暂无评论，快来抢沙发</text>
+  <view class="section">
+    <text class="section-title">评论</text>
+    <text class="section-sub num">{{comments.length}}</text>
+  </view>
+
+  <view class="card card-flat pad-0" wx:if="{{comments.length}}">
+    <view class="list-row" wx:for="{{comments}}" wx:key="id">
+      <view class="list-icon"><view class="ic ic-sm ic-user"></view></view>
+      <view class="flex-1 cmt-body">
+        <view class="flex-between">
+          <text class="cmt-user">用户{{item.user_id}}</text>
+          <text class="cmt-time">{{item.created_at}}</text>
+        </view>
+        <text class="cmt-text">{{item.content}}</text>
+      </view>
     </view>
   </view>
 
+  <view class="empty" wx:if="{{comments.length === 0}}">
+    <view class="ic ic-comment empty-ic"></view>
+    <text class="empty-text">暂无评论，快来抢沙发</text>
+  </view>
+
   <!-- 底部评论输入 -->
-  <view class="comment-bar">
-    <input class="comment-input" placeholder="写评论..." value="{{commentText}}" bindinput="onCommentInput" confirm-type="send" bindconfirm="submitComment" />
-    <view class="send-btn" bindtap="submitComment">发送</view>
+  <view class="bar">
+    <input class="bar-input" placeholder="写评论..." placeholder-class="ph" value="{{commentText}}"
+           bindinput="onCommentInput" confirm-type="send" bindconfirm="submitComment" />
+    <view class="bar-send" bindtap="submitComment">
+      <text>发送</text><view class="ic ic-sm ic-arrow ic-light"></view>
+    </view>
   </view>
 </view>

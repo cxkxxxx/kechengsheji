@@ -1,10 +1,63 @@
-.container { display: flex; flex-direction: column; align-items: center; min-height: 100vh; padding-top: 240rpx; background: linear-gradient(180deg, #2B1E8F 0%, #4B3FE3 45%, #3B82F6 100%); position: relative; overflow: hidden; box-sizing: border-box; }
-.glow { position: absolute; border-radius: 50%; }
-.glow-a { right: -140rpx; top: -140rpx; width: 440rpx; height: 440rpx; background: rgba(255,255,255,0.10); }
-.glow-b { left: -120rpx; bottom: 60rpx; width: 320rpx; height: 320rpx; background: rgba(255,255,255,0.06); }
+/* 登录页：只留品牌头区 + 一个主按钮，颜色一律走 app.wxss 的变量 */
+.container {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-height: 100vh; padding: 0 var(--s-6) 120rpx; box-sizing: border-box;
+  position: relative; overflow: hidden;
+  background: linear-gradient(160deg, var(--brand-deep) 0%, var(--brand) 46%, var(--brand-2) 100%);
+}
+.glow { position: absolute; border-radius: 50%; pointer-events: none; }
+.glow-a {
+  right: -150rpx; top: -170rpx; width: 480rpx; height: 480rpx;
+  background: radial-gradient(circle, rgba(255, 255, 255, .20) 0%, rgba(255, 255, 255, 0) 70%);
+}
+.glow-b {
+  left: -150rpx; bottom: -90rpx; width: 420rpx; height: 420rpx;
+  background: radial-gradient(circle, rgba(255, 255, 255, .12) 0%, rgba(255, 255, 255, 0) 72%);
+}
 
-.logo-badge { z-index: 1; width: 150rpx; height: 150rpx; line-height: 150rpx; text-align: center; border-radius: 44rpx; background: rgba(255,255,255,0.16); border: 2rpx solid rgba(255,255,255,0.35); color: #fff; font-size: 72rpx; font-weight: 700; box-shadow: 0 16rpx 40rpx rgba(0,0,0,0.25); margin-bottom: 36rpx; }
-.logo { z-index: 1; font-size: 64rpx; font-weight: 700; color: #fff; letter-spacing: 6rpx; margin-bottom: 16rpx; }
-.desc { z-index: 1; color: rgba(255,255,255,0.82); font-size: 30rpx; }
-.btn-primary { z-index: 1; margin-top: 120rpx; width: 76%; background: #ffffff; color: #5046E5; box-shadow: 0 14rpx 44rpx rgba(0,0,0,0.25); }
-.btn-primary::after { border: none; }
+.brand { z-index: 1; display: flex; flex-direction: column; align-items: center; }
+.logo-badge {
+  width: 164rpx; height: 164rpx; display: flex; align-items: center; justify-content: center;
+  border-radius: var(--r-lg); background: rgba(255, 255, 255, .16);
+  border: 2rpx solid rgba(255, 255, 255, .34); color: #fff;
+  font-size: 76rpx; font-weight: 700; box-shadow: var(--sh-3); margin-bottom: var(--s-5);
+}
+.logo { font-size: 62rpx; font-weight: 700; color: #fff; letter-spacing: 6rpx; }
+.slogan { font-size: 27rpx; color: rgba(255, 255, 255, .78); letter-spacing: 1rpx; margin-top: var(--s-3); }
+
+/* 主按钮反白，压在渐变上才有层次；渐变底交给 .btn-primary 默认样式的地方用 */
+.btn-login {
+  z-index: 1; width: 100%; margin-top: 100rpx; padding: 26rpx 44rpx;
+  background: var(--card); color: var(--brand);
+  border-radius: var(--r-md); font-size: 31rpx; box-shadow: var(--sh-3);
+}
+.btn-login:active { background: var(--fill); transform: scale(.985); }
+.btn-login::after { border: none; }
+
+/* 昵称密码面板：半透明白压在渐变上，比纯白卡片更贴这个背景 */
+.panel {
+  z-index: 1; width: 100%; margin-top: var(--s-5);
+  background: rgba(255, 255, 255, .12);
+  border: 1rpx solid rgba(255, 255, 255, .22);
+  border-radius: var(--r-lg); padding: var(--s-2);
+}
+.panel-tabs { display: flex; gap: 6rpx; padding: 6rpx; }
+.panel-tab {
+  flex: 1; text-align: center; padding: 16rpx 0; border-radius: var(--r-sm);
+  font-size: 27rpx; color: rgba(255, 255, 255, .8);
+}
+.panel-tab.active { background: var(--card); color: var(--brand); font-weight: 600; }
+.panel-body { padding: var(--s-3) var(--s-2) var(--s-2); }
+.field {
+  width: 100%; height: 88rpx; margin-bottom: var(--s-3); padding: 0 28rpx;
+  box-sizing: border-box; background: rgba(255, 255, 255, .9);
+  border-radius: var(--r-sm); font-size: 29rpx; color: var(--ink);
+}
+.field-ph { color: #9AA1B5; }
+.btn-submit {
+  height: 88rpx; line-height: 88rpx; text-align: center; border-radius: var(--r-sm);
+  background: rgba(255, 255, 255, .18); color: #fff; font-size: 30rpx; font-weight: 600;
+  border: 1rpx solid rgba(255, 255, 255, .34);
+}
+.btn-submit:active { background: rgba(255, 255, 255, .3); }
+.panel-tip { display: block; margin-top: var(--s-3); font-size: 21rpx; line-height: 1.6; color: rgba(255, 255, 255, .72); }

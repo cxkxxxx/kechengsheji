@@ -1,5 +1,6 @@
 // 社区页逻辑：广场信息流（每屏固定 8 条，下拉刷新轮换展示未看过的）
 const { request } = require('../../utils/request')
+const { imageGrid } = require('../../utils/util')
 
 const PAGE = 8
 
@@ -20,7 +21,16 @@ function briefTags(v) {
 }
 
 function decorate(p) {
-  return Object.assign({}, p, { timeText: briefTime(p.created_at), tagList: briefTags(p.tags) })
+  // 卡片上最多铺 4 张（第 4 张压一层「+N」），完整九宫格留给详情页
+  const grid = imageGrid(p.images, 9)
+  const shown = grid.list.slice(0, 4)
+  return Object.assign({}, p, {
+    timeText: briefTime(p.created_at),
+    tagList: briefTags(p.tags),
+    gridCls: 'imgs imgs-' + shown.length,
+    gridShown: shown,
+    gridMore: grid.n > 4 ? grid.n - 4 : 0,
+  })
 }
 
 Page({

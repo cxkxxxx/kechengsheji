@@ -68,6 +68,18 @@
   .modal .row > div { flex:1; }
   .actions { display:flex; gap:10px; justify-content:flex-end; margin-top:16px; }
   .pager { margin-top:12px; color:#888; font-size:13px; }
+  /* 图片选择器 */
+  .thumbs { display:flex; flex-wrap:wrap; gap:8px; margin-top:6px; }
+  .thumb { position:relative; width:80px; height:80px; border:1px solid #ddd; border-radius:8px; overflow:hidden; background:#fafbfe; }
+  .thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+  .thumb .rm { position:absolute; top:2px; right:2px; width:18px; height:18px; line-height:16px; text-align:center; border-radius:50%; background:rgba(0,0,0,.55); color:#fff; font-size:13px; cursor:pointer; }
+  .addimg { display:inline-flex; align-items:center; justify-content:center; width:80px; height:80px; border:1px dashed #4B3FE3; border-radius:8px; color:#4B3FE3; font-size:12px; cursor:pointer; text-align:center; line-height:1.3; }
+  .addimg:hover { background:#f2f0ff; }
+  .modal input[type=url], .modal input#af_cover { font-size:12px; }
+  /* 待审核角标 */
+  .nav-badge { display:inline-block; min-width:18px; height:18px; line-height:18px; padding:0 5px; margin-left:6px; border-radius:9px; background:#ffb020; color:#fff; font-size:11px; text-align:center; vertical-align:middle; }
+  .queue-hint { align-self:center; color:#d97b0c; font-size:13px; }
+  .num.warn { color:#d97b0c; }
 </style>
 </head>
 <body>
@@ -88,7 +100,7 @@
     <div class="brand">省活攻略<br>管理后台</div>
     <div class="nav-item active" data-sec="stat">📊 数据看板</div>
     <div class="nav-item" data-sec="users">👥 用户管理</div>
-    <div class="nav-item" data-sec="articles">📄 攻略文章</div>
+    <div class="nav-item" data-sec="articles">📄 攻略文章<span class="nav-badge" id="navPendingArticles" style="display:none"></span></div>
     <div class="nav-item" data-sec="posts">💬 社区帖子</div>
     <div class="nav-item" data-sec="comments">🗨️ 评论管理</div>
   </div>
@@ -119,11 +131,18 @@
     <div id="sec-articles" class="section">
       <div class="toolbar">
         <input id="articleQ" placeholder="搜索标题" onkeyup="if(event.key==='Enter')loadArticles()">
+        <select id="articleStatus" onchange="loadArticles()">
+          <option value="">全部</option>
+          <option value="pending">待审核</option>
+          <option value="approved">已通过</option>
+          <option value="rejected">已驳回</option>
+        </select>
         <button class="btn" onclick="loadArticles()">搜索</button>
         <button class="btn" style="background:#ffb020;color:#fff" onclick="openArticle()">+ 新增文章</button>
+        <span class="queue-hint" id="articleQueueHint" style="display:none"></span>
       </div>
       <table>
-        <thead><tr><th>ID</th><th>标题</th><th>分类</th><th>作者</th><th>点赞</th><th>浏览</th><th>时间</th><th>操作</th></tr></thead>
+        <thead><tr><th>ID</th><th>标题</th><th>分类</th><th>作者</th><th>状态</th><th>点赞</th><th>浏览</th><th>时间</th><th>操作</th></tr></thead>
         <tbody id="articleTbody"></tbody>
       </table>
       <div class="pager" id="articlePager"></div>
@@ -172,7 +191,11 @@
       </select></div>
       <div><label>作者</label><input id="af_author" value="抠门达人"></div>
     </div>
-    <label>封面图 URL（可空）</label><input id="af_cover" placeholder="https://...">
+    <label>封面图</label>
+    <div class="thumbs" id="coverSlot"></div>
+    <input id="af_cover" placeholder="封面 URL（可空，上传后自动填入 /static/...）" oninput="renderCover()">
+    <label>正文配图（最多 3 张）</label>
+    <div class="thumbs" id="bodySlot"></div>
     <label>正文（Markdown）</label><textarea id="af_content"></textarea>
     <div class="actions">
       <button class="btn ghost" onclick="closeArticle()">取消</button>
@@ -182,6 +205,10 @@
 </div><script>
 var TOKEN = '';
 var PG = {}; // 各列表页码
+var articleImages = [];        // 正文配图 URL 数组（最多 3 张；后端 ARTICLE_MAX_IMAGES=4 留了余量）
+var editingArticleStatus = ''; // 编辑时保留原状态，避免保存把 pending 覆盖成 approved
+var MAX_BODY_IMAGES = 3;       // 正文配图上限（封面另算，对齐"1 封面 + 3 配图"）
+var MAX_UPLOAD_BYTES = 2 * 1024 * 1024; // 2MB，与后端 UPLOAD_MAX_MB 一致，先在前端拦一道省一次往返
 
 function t() { return localStorage.getItem('admin_token') || ''; }
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
@@ -195,6 +222,58 @@ async function api(path, method, body) {
   if (j.code !== 200) throw new Error(j.message || '请求失败');
   return j.data;
 }
+
+/* ---- 图片上传：POST /upload/image，multipart 字段名 file，带当前登录 token ---- */
+/* 校验失败走 HTTPException（400 空/413 超限/415 类型/401 鉴权），body 是 {detail}；
+   业务失败走统一响应体 {code,message}。这里两种都兜住。 */
+async function uploadImage(file) {
+  if (!file) throw new Error('未选择文件');
+  if (file.size > MAX_UPLOAD_BYTES) throw new Error('图片超过 2MB 上限，请压缩后再传');
+  var fd = new FormData();
+  fd.append('file', file);
+  var res = await fetch('/upload/image', { method: 'POST', headers: { 'Authorization': 'Bearer ' + t() }, body: fd });
+  var j = await res.json().catch(function(){ return {}; });
+  if (!res.ok || j.code !== 200) {
+    // 不主动 doLogout：/upload/image 目前用普通用户鉴权，管理员 token 会被判 401，
+    // 每次都踢下线反而干扰操作；把 detail 原样显示更利于定位。
+    var msg = j.detail || j.message || ('上传失败（HTTP ' + res.status + '）');
+    if (res.status === 401) msg += '（上传接口只认普通用户 token，管理员 token 会被拒）';
+    throw new Error(msg);
+  }
+  return j.data; // {filename, url:"/static/..."}
+}
+
+/* ---- 封面：1 张，URL 落到 af_cover，saveArticle 直接读它 ---- */
+function renderCover() {
+  var url = document.getElementById('af_cover').value.trim();
+  var slot = document.getElementById('coverSlot');
+  if (!url) { slot.innerHTML = '<label class="addimg">+ 上传封面<input type="file" accept="image/*" hidden onchange="pickCover(this)"></label>'; return; }
+  slot.innerHTML = '<div class="thumb"><img src="' + esc(url) + '" onerror="this.style.opacity=.25"><span class="rm" onclick="removeCover()">×</span></div>';
+}
+async function pickCover(input) {
+  try { var d = await uploadImage(input.files[0]); document.getElementById('af_cover').value = d.url; renderCover(); }
+  catch (e) { alert(e.message); }
+  input.value = '';
+}
+function removeCover() { document.getElementById('af_cover').value = ''; renderCover(); }
+
+/* ---- 正文配图：最多 3 张，URL 存进 articleImages ---- */
+function renderArticleImages() {
+  var html = articleImages.map(function(u, i){
+    return '<div class="thumb"><img src="' + esc(u) + '" onerror="this.style.opacity=.25"><span class="rm" onclick="removeArticleImage(' + i + ')">×</span></div>';
+  }).join('');
+  if (articleImages.length < MAX_BODY_IMAGES) {
+    html += '<label class="addimg">+ 配图<input type="file" accept="image/*" hidden onchange="addArticleImage(this)"></label>';
+  }
+  document.getElementById('bodySlot').innerHTML = html;
+}
+async function addArticleImage(input) {
+  if (articleImages.length >= MAX_BODY_IMAGES) { renderArticleImages(); input.value = ''; return; }
+  try { var d = await uploadImage(input.files[0]); if (d.url && articleImages.indexOf(d.url) === -1) articleImages.push(d.url); }
+  catch (e) { alert(e.message); }
+  renderArticleImages(); input.value = '';
+}
+function removeArticleImage(i) { articleImages.splice(i, 1); renderArticleImages(); }
 
 /* ---- 登录 / 退出 ---- */
 async function doLogin() {
@@ -240,6 +319,16 @@ function showSection(sec) {
 }
 
 /* ---- 数据看板 ---- */
+function setPendingCounts(c) {
+  var n = (c && c.pending_articles) || 0;
+  var nav = document.getElementById('navPendingArticles');
+  if (nav) { nav.textContent = n; nav.style.display = n > 0 ? 'inline-block' : 'none'; }
+  var hint = document.getElementById('articleQueueHint');
+  if (hint) { hint.textContent = '有 ' + n + ' 条待审核投稿'; hint.style.display = n > 0 ? 'inline-block' : 'none'; }
+}
+function refreshPending() {
+  api('/stats').then(function(st){ setPendingCounts(st.counts); }).catch(function(){});
+}
 function chart(id, init) {
   if (typeof echarts === 'undefined') { document.getElementById(id).innerHTML = '<p style="color:#999;padding-top:40px;text-align:center">图表库未加载（需联网）</p>'; return; }
   var c = echarts.init(document.getElementById(id));
@@ -249,9 +338,10 @@ function chart(id, init) {
 function loadStats() {
   api('/stats').then(function(st){
     var c = st.counts, cards = '';
-    var defs = [['用户数', c.users], ['文章数', c.articles], ['帖子数', c.posts], ['评论数', c.comments], ['账单数', c.bills]];
-    defs.forEach(function(d){ cards += '<div class="card"><div class="num">' + d[1] + '</div><div class="label">' + d[0] + '</div></div>'; });
+    var defs = [['用户数', c.users], ['文章数', c.articles], ['帖子数', c.posts], ['评论数', c.comments], ['账单数', c.bills], ['待审核投稿', c.pending_articles, 1], ['待审核帖子', c.pending_posts, 1]];
+    defs.forEach(function(d){ cards += '<div class="card"><div class="num' + (d[2] ? ' warn' : '') + '">' + (d[1] == null ? 0 : d[1]) + '</div><div class="label">' + d[0] + '</div></div>'; });
     document.getElementById('statCards').innerHTML = cards;
+    setPendingCounts(c);
     var bar = echarts.init(document.getElementById('chartUsers'));
     if (typeof echarts !== 'undefined') { bar.setOption({
       tooltip:{}, grid:{left:40,right:16,top:20,bottom:24},
@@ -289,12 +379,24 @@ function delUser(id, name) {
 var editingArticleId = null;
 function loadArticles() {
   var q = document.getElementById('articleQ').value.trim();
+  var st = document.getElementById('articleStatus').value;
   var page = PG.articles || 1;
-  api('/articles?q=' + encodeURIComponent(q) + '&skip=' + ((page-1)*50) + '&limit=50').then(function(d){
-    var rows = d.items.map(function(a){ return '<tr><td>'+a.id+'</td><td>'+esc(a.title)+'</td><td>'+esc(a.category)+'</td><td>'+esc(a.author)+'</td><td>'+a.likes+'</td><td>'+a.views+'</td><td>'+a.created_at+'</td><td><button class="btn small ghost" onclick="editArticle('+a.id+')">编辑</button> <button class="btn small danger" onclick="delArticle('+a.id+')">删除</button></td></tr>'; }).join('');
-    document.getElementById('articleTbody').innerHTML = rows || '<tr><td colspan="8" style="text-align:center;color:#aaa">暂无数据</td></tr>';
+  api('/articles?q=' + encodeURIComponent(q) + '&status=' + encodeURIComponent(st) + '&skip=' + ((page-1)*50) + '&limit=50').then(function(d){
+    var badge = {approved:'green', pending:'orange', rejected:'red'};
+    var label = {approved:'已通过', pending:'待审核', rejected:'已驳回'};
+    var rows = d.items.map(function(a){ return '<tr><td>'+a.id+'</td><td>'+esc(a.title)+'</td><td>'+esc(a.category)+'</td><td>'+esc(a.author)+'</td><td><span class="badge '+(badge[a.status]||'green')+'">'+(label[a.status]||esc(a.status)||'已通过')+'</span></td><td>'+a.likes+'</td><td>'+a.views+'</td><td>'+a.created_at+'</td><td>'+articleActions(a)+'</td></tr>'; }).join('');
+    document.getElementById('articleTbody').innerHTML = rows || '<tr><td colspan="9" style="text-align:center;color:#aaa">暂无数据</td></tr>';
     document.getElementById('articlePager').textContent = '共 ' + d.total + ' 条' + (page>1 ? ' · <a onclick="PG.articles='+(page-1)+';loadArticles()">上一页</a>' : '') + (page*50<d.total ? ' · <a onclick="PG.articles='+(page+1)+';loadArticles()">下一页</a>' : '');
   }).catch(function(e){ alert(e.message); });
+}
+function articleActions(a) {
+  return '<button class="btn small ghost" onclick="setArticleStatus('+a.id+',\'approved\')">通过</button> '
+    + '<button class="btn small ghost" onclick="setArticleStatus('+a.id+',\'rejected\')">驳回</button> '
+    + '<button class="btn small ghost" onclick="editArticle('+a.id+')">编辑</button> '
+    + '<button class="btn small danger" onclick="delArticle('+a.id+')">删除</button>';
+}
+function setArticleStatus(id, status) {
+  api('/articles/' + id + '/status', 'PATCH', { status: status }).then(function(){ refreshPending(); loadArticles(); }).catch(function(e){ alert(e.message); });
 }
 function openArticle() {
   editingArticleId = null;
@@ -304,6 +406,10 @@ function openArticle() {
   document.getElementById('af_author').value = '抠门达人';
   document.getElementById('af_cover').value = '';
   document.getElementById('af_content').value = '';
+  articleImages = [];
+  editingArticleStatus = 'approved';
+  renderCover();
+  renderArticleImages();
   document.getElementById('articleModal').style.display = 'flex';
 }
 function editArticle(id) {
@@ -316,6 +422,12 @@ function editArticle(id) {
     document.getElementById('af_title').value = a.title;
     document.getElementById('af_category').value = a.category;
     document.getElementById('af_author').value = a.author;
+    document.getElementById('af_cover').value = a.cover || '';
+    document.getElementById('af_content').value = a.content || ''; // 列表接口只回传截断预览（≤120字），非完整正文
+    articleImages = Array.isArray(a.images) ? a.images.slice(0, MAX_BODY_IMAGES) : [];
+    editingArticleStatus = a.status || 'approved';
+    renderCover();
+    renderArticleImages();
   });
 }
 function closeArticle() { document.getElementById('articleModal').style.display = 'none'; }
@@ -324,14 +436,16 @@ function saveArticle() {
     category: document.getElementById('af_category').value,
     author: document.getElementById('af_author').value.trim() || '抠门达人',
     cover: document.getElementById('af_cover').value.trim(),
-    content: document.getElementById('af_content').value };
+    images: articleImages.slice(),
+    content: document.getElementById('af_content').value,
+    status: editingArticleId ? (editingArticleStatus || 'approved') : 'approved' };
   if (!body.title) { alert('标题不能为空'); return; }
   var p = editingArticleId ? api('/articles/' + editingArticleId, 'PUT', body) : api('/articles', 'POST', body);
   p.then(function(){ alert('已保存'); closeArticle(); loadArticles(); }).catch(function(e){ alert(e.message); });
 }
 function delArticle(id) {
   if (!confirm('确认删除该文章？')) return;
-  api('/articles/' + id, 'DELETE').then(function(){ alert('已删除'); loadArticles(); }).catch(function(e){ alert(e.message); });
+  api('/articles/' + id, 'DELETE').then(function(){ alert('已删除'); refreshPending(); loadArticles(); }).catch(function(e){ alert(e.message); });
 }
 
 /* ---- 帖子管理 ---- */

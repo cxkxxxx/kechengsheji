@@ -38,6 +38,8 @@ Page({
     showDialog: false,
     dialogMode: 'add',
     editingId: 0,
+    showGoalDialog: false,
+    goalForm: { spend_limit: '', target_amount: '' },
     categories: ['餐饮', '购物', '交通', '生活', '娱乐', '医疗', '其他'],
     form: { amount: '', category: '餐饮', source: '', bill_date: '' }
   },
@@ -104,7 +106,7 @@ Page({
         }),
         analysis: view,
         months: months || [],
-        plan: month === currentMonth() ? (plan || null) : null,
+        plan: this._decoratePlan(month === currentMonth() ? plan : null),
         hasBills: list.length > 0,
         loading: false
       }, () => this.drawPieChart(cats))   // canvas 节点要等这一帧渲染完才存在
@@ -112,6 +114,62 @@ Page({
       this.setData({ loading: false })
       console.error(e)
     }
+  },
+
+  // 后端给数字，这里只补「怎么显示」：超预算要变红并说清超了多少
+  _decoratePlan(plan) {
+    if (!plan) return null
+    const limit = parseFloat(plan.spend_limit) || 0
+    const spend = parseFloat(plan.spend) || 0
+    const over = limit > 0 && spend > limit
+    let overText = ''
+    if (limit > 0) {
+      overText = over
+        ? '已超支 ' + formatMoney(spend - limit) + ' 元'
+        : '还可花 ' + formatMoney(limit - spend) + ' 元'
+    }
+    return Object.assign({}, plan, {
+      budget_over: over,
+      budget_overText: overText,
+      spend: formatMoney(spend),
+      saved_amount: formatMoney(plan.saved_amount)
+    })
+  },
+
+  openGoalDialog() {
+    const p = this.data.plan || {}
+    this.setData({
+      showGoalDialog: true,
+      goalForm: {
+        spend_limit: p.spend_limit ? String(p.spend_limit) : '',
+        target_amount: p.target_amount ? String(p.target_amount) : ''
+      }
+    })
+  },
+
+  closeGoalDialog() { this.setData({ showGoalDialog: false }) },
+
+  onGoalInput(e) {
+    const f = e.currentTarget.dataset.field
+    this.setData({ ['goalForm.' + f]: e.detail.value })
+  },
+
+  async saveGoal() {
+    const limit = parseFloat(this.data.goalForm.spend_limit) || 0
+    const target = parseFloat(this.data.goalForm.target_amount) || 0
+    if (limit <= 0 && target <= 0) {
+      wx.showToast({ title: '至少设一个目标', icon: 'none' })
+      return
+    }
+    if (limit < 0 || target < 0) {
+      wx.showToast({ title: '目标不能是负数', icon: 'none' })
+      return
+    }
+    try {
+      const plan = await request('/checkin/plan', 'POST', { spend_limit: limit, target_amount: target })
+      this.setData({ plan: this._decoratePlan(plan), showGoalDialog: false })
+      wx.showToast({ title: '目标已保存', icon: 'success' })
+    } catch (e) { console.error(e) }
   },
 
   // 切换上一/下一月

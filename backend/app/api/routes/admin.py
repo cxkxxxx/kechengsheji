@@ -8,8 +8,10 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db, SessionLocal
-from app.core.config import SECRET_KEY, ALGORITHM
+from app.core.config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES, ARTICLE_MAX_IMAGES
+from app.core.rate_limit import limit_by_ip
 from app.utils.response import success, error
+from app.utils import images as image_field
 from app.models.admin import Admin
 from app.models.user import User
 from app.models.article import Article
@@ -76,7 +78,11 @@ class ArticleIn(BaseModel):
     content: str = ""
     category: str = "综合"
     cover: str = ""
-    author: str = "抠门达人"
+    images: list = []
+    author: str = "官方"
+    # 留空表示「不改状态」。默认给 approved 的话，编辑一篇已驳回的攻略点保存
+    # 就会把它悄悄放行了——驳回必须是一个显式动作。
+    status: str = ""
 
 
 # ---------- 页面 ----------
@@ -93,12 +99,16 @@ def admin_page():
 
 # ---------- 登录 ----------
 @router.post("/admin/api/login")
-def admin_login(payload: AdminLogin, db: Session = Depends(get_db)):
+def admin_login(payload: AdminLogin, db: Session = Depends(get_db),
+                _: None = Depends(limit_by_ip("admin_login", limit=5))):
     admin = db.query(Admin).filter(Admin.username == payload.username).first()
     if not admin or admin.password_hash != _hash(payload.password):
         return error("用户名或密码错误", 401)
+    # 带 exp：不加的话管理员 token 一旦泄露就永久有效
+    now = datetime.utcnow()
     token = jwt.encode(
-        {"sub": f"admin:{admin.id}", "iat": datetime.utcnow()},
+        {"sub": f"admin:{admin.id}", "iat": now,
+         "exp": now + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)},
         SECRET_KEY, algorithm=ALGORITHM,
     )
     return success({"token": token, "username": admin.username})
@@ -113,6 +123,9 @@ def admin_stats(_=Depends(get_current_admin), db: Session = Depends(get_db)):
         "posts": db.query(Post).count(),
         "comments": db.query(Comment).count(),
         "bills": db.query(Bill).count(),
+        # 待审核投稿：管理端首页要能一眼看到有几条等着放行
+        "pending_articles": db.query(Article).filter(Article.status == "pending").count(),
+        "pending_posts": db.query(Post).filter(Post.status == "pending").count(),
     }
     # 近 7 天新增用户
     today = date.today()
@@ -174,18 +187,38 @@ def admin_user_delete(uid: int, _=Depends(get_current_admin), db: Session = Depe
 
 # ---------- 攻略文章管理 ----------
 @router.get("/admin/api/articles")
-def admin_articles(q: str = "", skip: int = 0, limit: int = 50,
+def admin_articles(q: str = "", status: str = "", skip: int = 0, limit: int = 50,
                    _=Depends(get_current_admin), db: Session = Depends(get_db)):
+    # status=pending 就是投稿审核队列
     query = db.query(Article)
     if q:
         query = query.filter(Article.title.contains(q))
+    if status:
+        query = query.filter(Article.status == status)
     total = query.count()
     items = query.order_by(Article.created_at.desc()).offset(skip).limit(limit).all()
     return success({"total": total, "items": [
         {"id": a.id, "title": a.title, "category": a.category, "author": a.author,
+         "status": a.status or "approved", "user_id": a.user_id or 0,
+         "cover": a.cover or "", "images": image_field.loads(a.images),
+         # 编辑表单直接读这一份回填，截断会让保存时把正文尾巴抹掉
+         "content": a.content or "",
          "likes": a.likes, "views": a.views,
          "created_at": (a.created_at.strftime("%Y-%m-%d %H:%M") if a.created_at else "")}
         for a in items]})
+
+
+@router.patch("/admin/api/articles/{aid}/status")
+def admin_article_status(aid: int, body: dict, _=Depends(get_current_admin), db: Session = Depends(get_db)):
+    a = db.query(Article).filter(Article.id == aid).first()
+    if not a:
+        return error("文章不存在", 404)
+    st = (body or {}).get("status", "approved")
+    if st not in ("pending", "approved", "rejected"):
+        return error("状态只能是 pending / approved / rejected", 400)
+    a.status = st
+    db.commit()
+    return success({"status": a.status}, "已更新状态")
 
 
 def _admin_get_article(aid: int, db: Session):
@@ -197,8 +230,13 @@ def _admin_get_article(aid: int, db: Session):
 
 @router.post("/admin/api/articles")
 def admin_article_create(payload: ArticleIn, _=Depends(get_current_admin), db: Session = Depends(get_db)):
+    try:
+        images = image_field.dumps(payload.images, ARTICLE_MAX_IMAGES, "配图")
+    except ValueError as e:
+        return error(str(e), 400)
     a = Article(title=payload.title, content=payload.content, category=payload.category,
-                cover=payload.cover, author=payload.author)
+                cover=payload.cover, images=images, author=payload.author,
+                status=payload.status if payload.status in ("pending", "approved", "rejected") else "approved")
     db.add(a)
     db.commit()
     return success({"id": a.id}, "已创建")
@@ -209,8 +247,15 @@ def admin_article_update(aid: int, payload: ArticleIn, _=Depends(get_current_adm
     a, err = _admin_get_article(aid, db)
     if err:
         return err
+    try:
+        images = image_field.dumps(payload.images, ARTICLE_MAX_IMAGES, "配图")
+    except ValueError as e:
+        return error(str(e), 400)
     a.title, a.content = payload.title, payload.content
     a.category, a.cover, a.author = payload.category, payload.cover, payload.author
+    a.images = images
+    if payload.status in ("pending", "approved", "rejected"):
+        a.status = payload.status
     db.commit()
     return success(True, "已更新")
 

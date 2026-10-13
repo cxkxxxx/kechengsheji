@@ -1,59 +1,100 @@
 <!-- 账单页：月份切换 + 分类可视化 + 记账/改/删 + AI 联动 -->
 <view class="container">
-  <!-- 月份切换 -->
-  <view class="month-bar">
-    <view class="mb-btn" bindtap="shiftMonth" data-d="{{-1}}">‹</view>
-    <picker mode="selector" range="{{months}}" range-key="month" bindchange="pickMonth">
-      <view class="mb-label">
-        <text class="mb-month">{{monthLabel}}</text>
-        <text class="mb-caret">▾</text>
+  <!-- 头区：月份切换 + 支出总览 -->
+  <view class="hero">
+    <view class="mb-bar">
+      <view class="mb-btn" bindtap="shiftMonth" data-d="{{-1}}">
+        <view class="ic ic-sm ic-back ic-light"></view>
       </view>
-    </picker>
-    <view class="mb-btn {{isCurrentMonth ? 'disabled' : ''}}" bindtap="shiftMonth" data-d="{{1}}">›</view>
-  </view>
+      <picker class="mb-pick flex-1" mode="selector" range="{{months}}" range-key="month" bindchange="pickMonth">
+        <view class="mb-label">
+          <text class="mb-month">{{monthLabel}}</text>
+          <view class="ic ic-sm ic-arrow ic-light mb-caret"></view>
+        </view>
+      </picker>
+      <view class="mb-btn {{isCurrentMonth ? 'disabled' : ''}}" bindtap="shiftMonth" data-d="{{1}}">
+        <view class="ic ic-sm ic-arrow ic-light"></view>
+      </view>
+    </view>
 
-  <!-- 支出总览 -->
-  <view class="card hero-card">
-    <view class="flex-between">
-      <view>
-        <text class="desc">总支出</text>
-        <view class="hero-num"><text class="num">{{summary.totalText || '0.00'}}</text><text class="hero-unit">元</text></view>
-        <text class="desc">{{summary.count || 0}} 笔记录<text wx:if="{{analysis.daily_avg}}"> · 日均 {{analysis.daily_avg}} 元</text></text>
+    <view class="sum-row">
+      <view class="flex-1">
+        <text class="hero-sub">总支出（元）</text>
+        <view class="sum"><text class="num">{{summary.totalText || '0.00'}}</text></view>
+        <text class="hero-sub">{{summary.count || 0}} 笔记录<text wx:if="{{analysis.daily_avg}}"> · 日均 {{analysis.daily_avg}} 元</text></text>
       </view>
-      <view class="hero-side">
+      <view class="sum-side">
         <view wx:if="{{analysis.diff_pct !== null && analysis.diff_pct !== undefined}}"
               class="trend {{analysis.diff > 0 ? 'up' : 'down'}}">
-          <text>{{analysis.diff > 0 ? '↑' : '↓'}} {{analysis.diff_pct}}%</text>
+          <view class="ic ic-sm ic-arrow trend-ic {{analysis.diff > 0 ? 'is-up' : 'is-down'}}"></view>
+          <text class="num">{{analysis.diff_pct}}%</text>
         </view>
-        <text class="desc">{{analysis.prev_month || ''}} 共 {{analysis.prev_total || 0}} 元</text>
+        <text class="hero-sub">{{analysis.prev_month || ''}} 共 {{analysis.prev_total || 0}} 元</text>
       </view>
     </view>
+
     <view class="hero-actions">
-      <view class="btn-ghost flex-1" bindtap="askAI">让 AI 分析这个月</view>
-      <view class="btn-ghost flex-1" bindtap="seedDemo" wx:if="{{!seeding}}">导入演示账单</view>
-      <view class="btn-ghost flex-1 btn-disabled" wx:else>导入中…</view>
+      <view class="hero-btn flex-1" bindtap="askAI">
+        <view class="ic ic-sm ic-spark ic-light"></view><text>让 AI 分析</text>
+      </view>
+      <view class="hero-btn flex-1" bindtap="seedDemo" wx:if="{{!seeding}}">
+        <view class="ic ic-sm ic-plus ic-light"></view><text>导入演示账单</text>
+      </view>
+      <view class="hero-btn flex-1 btn-disabled" wx:else>
+        <view class="ic ic-sm ic-plus ic-light"></view><text>导入中…</text>
+      </view>
     </view>
   </view>
 
-  <!-- 省钱目标（仅当月有意义） -->
-  <view class="card goal-card" wx:if="{{plan && plan.target_amount > 0}}">
+  <!-- 本月目标：支出上限 + 省钱目标，两种可以并存 -->
+  <view class="card goal-card" wx:if="{{plan && (plan.spend_limit > 0 || plan.target_amount > 0)}}">
     <view class="flex-between">
-      <text class="title">本月省钱目标</text>
-      <text class="desc">连续打卡 {{plan.checkin_days || 0}} 天</text>
+      <view class="flex gap-2">
+        <view class="list-icon"><view class="ic ic-target"></view></view>
+        <text class="title">本月目标</text>
+      </view>
+      <text class="chip chip-grey" bindtap="openGoalDialog">修改</text>
     </view>
-    <view class="goal-bar">
-      <view class="goal-fill" style="width: {{plan.saved_amount / plan.target_amount * 100 > 100 ? 100 : plan.saved_amount / plan.target_amount * 100}}%"></view>
-    </view>
-    <view class="flex-between">
-      <text class="desc">已省 {{plan.saved_amount || 0}} 元</text>
-      <text class="desc">目标 {{plan.target_amount}} 元</text>
+
+    <block wx:if="{{plan.spend_limit > 0}}">
+      <view class="goal-label">
+        <text class="desc">支出上限 {{plan.spend_limit}} 元 · 已花 {{plan.spend}} 元</text>
+        <text class="desc {{plan.budget_over ? 'over' : 'left'}}">{{plan.budget_overText}}</text>
+      </view>
+      <view class="goal-bar">
+        <view class="goal-fill budget {{plan.budget_over ? 'is-over' : ''}}" style="width: {{plan.budget_used > 100 ? 100 : plan.budget_used}}%"></view>
+      </view>
+    </block>
+
+    <block wx:if="{{plan.target_amount > 0}}">
+      <view class="goal-label">
+        <text class="desc">省钱目标 {{plan.target_amount}} 元 · 已省 {{plan.saved_amount}} 元</text>
+        <text class="chip chip-sm chip-ok">打卡 {{plan.checkin_days || 0}} 天</text>
+      </view>
+      <view class="goal-bar">
+        <view class="goal-fill" style="width: {{plan.save_progress > 100 ? 100 : plan.save_progress}}%"></view>
+      </view>
+    </block>
+  </view>
+
+  <!-- 没设目标时给个入口，不然用户根本不知道这里能设 -->
+  <view class="card goal-empty" wx:elif="{{isCurrentMonth && !loading}}" bindtap="openGoalDialog">
+    <view class="flex gap-2">
+      <view class="list-icon"><view class="ic ic-target"></view></view>
+      <view class="flex-1">
+        <text class="title">设个月度目标</text>
+        <text class="desc">比如「这个月最多花 2000」或「这个月省 500」，AI 分析账单时会按它来提醒</text>
+      </view>
+      <view class="ic ic-sm ic-arrow"></view>
     </view>
   </view>
 
   <!-- 加载中骨架 -->
   <view class="card" wx:if="{{loading}}">
-    <view class="skeleton" style="height: 260rpx; margin-bottom: 20rpx;"></view>
-    <view class="skeleton" style="height: 32rpx; width: 60%;"></view>
+    <view class="skeleton" style="height: 26rpx; width: 40%; margin-bottom: 28rpx;"></view>
+    <view class="skeleton" style="height: 300rpx; margin-bottom: 28rpx;"></view>
+    <view class="skeleton" style="height: 26rpx; width: 78%; margin-bottom: 16rpx;"></view>
+    <view class="skeleton" style="height: 26rpx; width: 56%;"></view>
   </view>
 
   <!-- AI 可视化 -->
@@ -82,9 +123,16 @@
 
     <view class="card advice-card">
       <view class="advice-head">
-        <view class="badge"><view class="badge-dot" style="background: #6D5BFF"></view>AI 省钱建议</view>
-        <view class="advice-refresh" bindtap="refreshAdvice">
-          <text>{{adviceLoading ? '生成中…' : '重新生成'}}</text>
+        <view class="flex gap-2">
+          <view class="list-icon"><view class="ic ic-spark"></view></view>
+          <view class="flex-col">
+            <text class="title">AI 省钱建议</text>
+            <text class="desc">按 {{analysis.month}} 实际账单生成</text>
+          </view>
+        </view>
+        <view class="btn-ghost advice-refresh" bindtap="refreshAdvice">
+          <view class="ic ic-sm ic-refresh {{adviceLoading ? 'is-spin' : ''}}"></view>
+          <text>{{adviceLoading ? '生成中' : '重新生成'}}</text>
         </view>
       </view>
       <text class="ai-text" wx:if="{{analysis.ai_advice}}">{{analysis.ai_advice}}</text>
@@ -94,40 +142,50 @@
 
   <!-- 空态 -->
   <view class="empty" wx:elif="{{!loading}}">
-    <text class="empty-emoji">🧾</text>
+    <view class="ic ic-wallet empty-ic"></view>
     <text class="empty-text">{{month}} 还没有账单</text>
-    <view class="btn-primary empty-btn" bindtap="openAddDialog">记第一笔</view>
     <text class="desc empty-tip">也可以直接对 AI 助手说「昨晚外卖 32 块」帮你记账</text>
-  </view>
-
-  <!-- 分类明细 -->
-  <view class="section" wx:if="{{summary.categories.length}}">
-    <text class="section-title">分类合计</text>
-  </view>
-  <view class="card card-flat cat-list" wx:if="{{summary.categories.length}}">
-    <view class="cat-row" wx:for="{{summary.categories}}" wx:key="name">
-      <view class="legend-dot" style="background: {{item.color}}"></view>
-      <text class="flex-1">{{item.name}}</text>
-      <text class="cat-amount num">{{item.amount}} 元</text>
+    <view class="btn-primary empty-btn" bindtap="openAddDialog">
+      <view class="ic ic-sm ic-plus ic-light"></view><text>记第一笔</text>
     </view>
   </view>
 
-  <!-- 账单列表 -->
+  <!-- 分类合计 -->
+  <view class="section" wx:if="{{summary.categories.length}}">
+    <text class="section-title">分类合计</text>
+    <text class="section-sub">共 {{summary.count || 0}} 笔</text>
+  </view>
+  <view class="tbl cat-tbl" wx:if="{{summary.categories.length}}">
+    <view class="tbl-row tbl-head">
+      <view class="tbl-cell">分类</view>
+      <view class="tbl-cell right">支出（元）</view>
+    </view>
+    <view class="tbl-row" wx:for="{{summary.categories}}" wx:key="name">
+      <view class="tbl-cell">
+        <view class="flex">
+          <view class="legend-dot" style="background: {{item.color}}"></view>
+          <text>{{item.name}}</text>
+        </view>
+      </view>
+      <view class="tbl-cell right num">{{item.amount}}</view>
+    </view>
+  </view>
+
+  <!-- 消费明细 -->
   <view class="section" wx:if="{{bills.length}}">
     <text class="section-title">消费明细</text>
     <text class="section-sub">点开可修改 · 长按删除</text>
   </view>
-  <view class="card card-flat bill-list" wx:if="{{bills.length}}">
-    <view class="bill-row" wx:for="{{shownBills}}" wx:key="id"
+  <view class="card card-flat pad-0" wx:if="{{bills.length}}">
+    <view class="list-row" wx:for="{{shownBills}}" wx:key="id"
           bindtap="openEditDialog" bindlongpress="removeBill" data-id="{{item.id}}">
-      <view class="bill-left">
-        <view class="legend-dot" style="background: {{item.color}}"></view>
-        <view class="bill-text">
-          <text class="bill-name ellipsis">{{item.source || item.category || '未分类'}}</text>
-          <text class="desc">{{item.category}} · {{item.bill_date}}</text>
-        </view>
+      <view class="list-icon"><view class="dot" style="background: {{item.color}}"></view></view>
+      <view class="flex-1 bill-text">
+        <text class="bill-name ellipsis">{{item.source || item.category || '未分类'}}</text>
+        <text class="desc">{{item.category}} · {{item.bill_date}}</text>
       </view>
       <text class="bill-amount num">-{{item.amount}}</text>
+      <view class="ic ic-sm ic-arrow"></view>
     </view>
     <view class="more-btn" wx:if="{{bills.length > previewCount}}" bindtap="toggleBills">
       {{showAllBills ? '收起' : '展开全部 ' + bills.length + ' 笔'}}
@@ -137,15 +195,20 @@
   <view class="list-padding"></view>
 
   <!-- 记一笔 -->
-  <view class="fab" bindtap="openAddDialog">+</view>
+  <view class="fab" bindtap="openAddDialog">
+    <view class="ic ic-plus ic-lg"></view>
+  </view>
 
   <!-- 录入 / 编辑弹窗 -->
   <view class="mask" wx:if="{{showDialog}}" bindtap="closeAddDialog"></view>
   <view class="dialog" wx:if="{{showDialog}}">
-    <view class="dialog-title">{{dialogMode === 'edit' ? '修改这笔' : '记一笔'}}</view>
+    <view class="dialog-head">
+      <view class="dialog-title">{{dialogMode === 'edit' ? '修改这笔' : '记一笔'}}</view>
+      <view class="dialog-x" bindtap="closeAddDialog"><view class="ic ic-sm ic-close"></view></view>
+    </view>
     <view class="form-item">
       <text class="label">金额</text>
-      <input class="input" type="digit" placeholder="0.00" value="{{form.amount}}" bindinput="onInput" data-field="amount" />
+      <input class="input" type="digit" placeholder="0.00" placeholder-class="ph" value="{{form.amount}}" bindinput="onInput" data-field="amount" />
     </view>
     <view class="form-item">
       <text class="label">分类</text>
@@ -156,18 +219,45 @@
     </view>
     <view class="form-item">
       <text class="label">备注</text>
-      <input class="input" placeholder="如：午餐、淘宝订单" value="{{form.source}}" bindinput="onInput" data-field="source" />
+      <input class="input" placeholder="如：午餐、淘宝订单" placeholder-class="ph" value="{{form.source}}" bindinput="onInput" data-field="source" />
     </view>
     <view class="form-item">
       <text class="label">日期</text>
       <picker mode="date" value="{{form.bill_date}}" bindchange="onDateChange">
-        <view class="picker">{{form.bill_date}}</view>
+        <view class="picker flex-between">
+          <text>{{form.bill_date}}</text>
+          <view class="ic ic-sm ic-clock"></view>
+        </view>
       </picker>
     </view>
     <view class="dialog-btns">
       <view class="btn-cancel" bindtap="closeAddDialog">取消</view>
-      <view class="btn-cancel danger" wx:if="{{dialogMode === 'edit'}}" bindtap="deleteFromDialog">删除</view>
+      <view class="btn-cancel danger flex-1" wx:if="{{dialogMode === 'edit'}}" bindtap="deleteFromDialog">
+        <view class="ic ic-sm ic-trash"></view><text>删除</text>
+      </view>
       <view class="btn-confirm" bindtap="submitBill">确定</view>
+    </view>
+  </view>
+
+  <!-- 月度目标弹窗：支出上限 + 省钱目标，至少填一个 -->
+  <view class="mask" wx:if="{{showGoalDialog}}" bindtap="closeGoalDialog"></view>
+  <view class="dialog" wx:if="{{showGoalDialog}}">
+    <view class="dialog-head"><text class="dialog-title">本月目标</text></view>
+    <view class="form-item">
+      <text class="label">支出上限（元）<text class="label-hint">填 0 表示不设</text></text>
+      <input class="input" type="digit" placeholder="例如 2000" placeholder-class="ph"
+             value="{{goalForm.spend_limit}}" bindinput="onGoalInput" data-field="spend_limit" />
+      <text class="desc goal-tip">这个月最多花多少，超了会标红提醒</text>
+    </view>
+    <view class="form-item">
+      <text class="label">省钱目标（元）<text class="label-hint">填 0 表示不设</text></text>
+      <input class="input" type="digit" placeholder="例如 500" placeholder-class="ph"
+             value="{{goalForm.target_amount}}" bindinput="onGoalInput" data-field="target_amount" />
+      <text class="desc goal-tip">配合「省钱打卡」累计，达标即完成</text>
+    </view>
+    <view class="dialog-btns">
+      <view class="btn-cancel" bindtap="closeGoalDialog">取消</view>
+      <view class="btn-confirm" bindtap="saveGoal">保存</view>
     </view>
   </view>
 </view>

@@ -1,11 +1,16 @@
-<!-- 社区页：省钱经验分享 -->
+<!-- 社区页：省钱经验分享，带图卡片 -->
 <view class="container">
-  <view class="comm-head">
-    <view>
-      <text class="comm-title">省钱社区</text>
-      <text class="comm-sub">大家实测有效的省钱路子，都在这儿</text>
+  <view class="hero">
+    <view class="flex-between">
+      <view>
+        <text class="hero-title">省钱社区</text>
+        <text class="hero-sub">大家实测有效的省钱路子，都在这儿</text>
+      </view>
+      <view class="comm-post-btn" bindtap="goCreatePost">
+        <text class="ic ic-plus ic-sm ic-light"></text>
+        <text>发帖</text>
+      </view>
     </view>
-    <view class="comm-post-btn" bindtap="goCreatePost">＋ 发帖</view>
   </view>
 
   <scroll-view scroll-y class="refresh-list" refresher-enabled
@@ -14,7 +19,7 @@
       <view class="card post-card" wx:for="{{[1,2,3]}}" wx:key="*this">
         <view class="skeleton" style="height: 32rpx; width: 65%;"></view>
         <view class="skeleton" style="height: 24rpx; width: 95%; margin-top: 18rpx;"></view>
-        <view class="skeleton" style="height: 24rpx; width: 55%; margin-top: 12rpx;"></view>
+        <view class="skeleton" style="height: 160rpx; width: 100%; margin-top: 18rpx;"></view>
       </view>
     </block>
 
@@ -22,31 +27,43 @@
       <view class="card post-card card-tap" wx:for="{{posts}}" wx:key="id"
             bindtap="goPostDetail" data-id="{{item.id}}">
         <view class="post-top">
-          <view class="post-avatar"><text>💡</text></view>
+          <view class="post-avatar"><text class="ic ic-spark ic-sm"></text></view>
           <text class="post-title ellipsis-2 flex-1">{{item.title}}</text>
         </view>
-        <text class="post-content ellipsis-3">{{item.content}}</text>
+        <text class="post-content ellipsis-3" wx:if="{{item.content}}">{{item.content}}</text>
+
+        <!-- 图片：卡片最多 4 张，第 4 张压 +N -->
+        <view class="{{item.gridCls}}" wx:if="{{item.gridShown.length}}">
+          <view class="img-cell" wx:for="{{item.gridShown}}" wx:for-item="img" wx:for-index="gi" wx:key="*this">
+            <image src="{{img}}" mode="aspectFill" />
+            <view class="img-more" wx:if="{{gi === item.gridShown.length - 1 && item.gridMore}}">+{{item.gridMore}}</view>
+          </view>
+        </view>
+
         <view class="post-tags" wx:if="{{item.tagList.length}}">
-          <text class="chip chip-sm" wx:for="{{item.tagList}}" wx:for-item="tag" wx:key="*this">{{tag}}</text>
+          <text class="chip chip-sm chip-grey" wx:for="{{item.tagList}}" wx:for-item="tag" wx:key="*this">{{tag}}</text>
         </view>
         <view class="post-meta">
           <view class="like-btn {{item.liked ? 'liked' : ''}}" catchtap="likePost" data-id="{{item.id}}">
-            <text>{{item.liked ? '❤' : '♡'}} {{item.likes || 0}}</text>
+            <text class="ic {{item.liked ? 'ic-heart-on' : 'ic-heart'}} ic-sm"></text>
+            <text class="num">{{item.likes || 0}}</text>
           </view>
-          <text class="desc">💬 {{item.comments_count || 0}} 评论</text>
+          <view class="meta-item">
+            <text class="ic ic-comment ic-sm"></text><text class="num">{{item.comments_count || 0}}</text>
+          </view>
           <text class="desc post-time">{{item.timeText}}</text>
         </view>
       </view>
 
       <view class="empty" wx:if="{{posts.length === 0}}">
-        <text class="empty-emoji">💬</text>
+        <text class="ic ic-comment empty-ic"></text>
         <text class="empty-text">还没有人发帖</text>
-        <text class="desc empty-tip">分享一条你的省钱经验，抢个沙发</text>
+        <text class="desc empty-tip">分享一条你的省钱经验，带张图更好</text>
         <view class="btn-primary empty-btn" bindtap="goCreatePost">去发帖</view>
       </view>
     </block>
     <view class="list-padding"></view>
   </scroll-view>
 
-  <view class="fab" bindtap="goCreatePost">+</view>
+  <view class="fab" bindtap="goCreatePost"><text class="ic ic-plus"></text></view>
 </view>

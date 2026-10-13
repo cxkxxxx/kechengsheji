@@ -5,10 +5,12 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.security import get_current_user
+from app.core.config import POST_MAX_IMAGES
 from app.models.user import User
 from app.models.post import Post
 from app.models.post_like import PostLike
 from app.schemas.post import PostCreate, PostResponse
+from app.utils import images as image_field
 from app.utils.response import success
 
 router = APIRouter()
@@ -19,17 +21,36 @@ def get_posts(skip: int = 0, limit: int = 20, db: Session = Depends(get_db)):
         .order_by(Post.created_at.desc()).offset(skip).limit(limit).all()
     return success([PostResponse.model_validate(p) for p in items])
 
+@router.get("/mine")
+def my_posts(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    # 我自己的帖子必须走这个接口，不能拿 GET /posts 去前端挑：
+    # 那个只返回全局最新 20 条已过审的，用户第 21 条和被打回的帖子永远不在里面，
+    # 「我的发帖」数量自然对不上、列表还经常是空的。
+    rows = (db.query(Post).filter(Post.user_id == current_user.id)
+            .order_by(Post.created_at.desc()).limit(100).all())
+    items = [PostResponse.model_validate(p).model_dump() for p in rows]
+    for p, m in zip(rows, items):
+        m["status"] = p.status or "approved"
+    return success({"total": len(items),
+                    "published": sum(1 for p in rows if (p.status or "approved") == "approved"),
+                    "items": items})
+
+
 @router.post("")
 def create_post(
     post_data: PostCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    try:
+        images = image_field.dumps(post_data.images, POST_MAX_IMAGES, "图片")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
     post = Post(
         user_id=current_user.id,
         title=post_data.title,
         content=post_data.content,
-        images=post_data.images,
+        images=images,
         tags=post_data.tags,
     )
     db.add(post)

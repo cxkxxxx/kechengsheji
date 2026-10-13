@@ -2,9 +2,33 @@
 const { request } = require('../../utils/request')
 const app = getApp()
 
+const MAX_GALLERY = 9   // .imgs 九宫格最多 9 张，再多就看不清了
+
+// 后端图片存的是 /static/xxx，小程序的 image 组件不认相对路径，得拼上接口域名
+function fullUrl(raw) {
+  const s = String(raw || '').trim()
+  if (!s) return ''
+  if (s.indexOf('http://') === 0 || s.indexOf('https://') === 0) return s
+  const baseUrl = (getApp() && getApp().globalData && getApp().globalData.baseUrl)
+    || (app && app.globalData && app.globalData.baseUrl) || ''
+  return baseUrl + (s.charAt(0) === '/' ? s : '/' + s)
+}
+
+// 正文配图：接口对外给数组，这里顺带兼容还没解开的 JSON 字符串和脏数据
+function parseImages(raw) {
+  let list = raw
+  if (typeof list === 'string') {
+    try { list = JSON.parse(list) } catch (e) { list = [] }
+  }
+  if (!Array.isArray(list)) return []
+  return list.map(fullUrl).filter(Boolean).slice(0, MAX_GALLERY)
+}
+
 Page({
   data: {
     article: {},
+    cover: '',
+    gallery: [],
     comments: [],
     commentText: '',
     favorited: false,
@@ -24,6 +48,9 @@ Page({
       ])
       this.setData({
         article: article || {},
+        // 封面与正文配图单独出字段：WXML 里没法拼域名，也没法 JSON.parse
+        cover: fullUrl(article && article.cover),
+        gallery: parseImages(article && article.images),
         comments: comments || []
       })
       // 检查收藏状态（需登录）

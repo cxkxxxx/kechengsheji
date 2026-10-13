@@ -1,23 +1,60 @@
-.container { padding: 28rpx; padding-bottom: 140rpx; }
-.title { font-size: 40rpx; font-weight: 800; display: block; line-height: 1.4; margin-bottom: 16rpx; }
-.meta { display: flex; gap: 24rpx; color: #8A90A6; font-size: 24rpx; margin-bottom: 28rpx; }
-.content { font-size: 30rpx; line-height: 1.9; color: #3A4060; }
+/* 文章详情：卡片 / 线性图标 / 九宫格 / 列表行都来自 app.wxss，这里只补本页排版 */
+.container { padding: 0 var(--gap) 200rpx; }
 
-/* 操作栏 */
-.actions { display: flex; gap: 20rpx; padding: 30rpx 0; border-top: 2rpx solid #EDF1FB; border-bottom: 2rpx solid #EDF1FB; margin: 30rpx 0; }
-.action { padding: 16rpx 44rpx; border: 2rpx solid #E4E8F5; border-radius: 44rpx; font-size: 28rpx; color: #5A6078; }
-.action.active { background: linear-gradient(135deg, #6D5BFF 0%, #3B82F6 100%); color: #fff; border-color: transparent; box-shadow: 0 8rpx 20rpx rgba(79, 90, 255, 0.3); }
+/* —— 封面 —— */
+.cover {
+  width: 100%; height: 380rpx; display: block; margin-top: var(--s-3);
+  border-radius: var(--r-md); background: var(--fill); box-shadow: var(--sh-2);
+}
 
-/* 评论区 */
-.comments-section { margin-top: 24rpx; }
-.section-title { font-size: 32rpx; font-weight: 700; display: block; margin-bottom: 20rpx; }
-.comment-item { padding: 22rpx 0; border-bottom: 2rpx solid #EDF1FB; }
-.comment-user { font-size: 28rpx; font-weight: 600; color: #5046E5; }
-.comment-content { display: block; font-size: 28rpx; color: #3A4060; margin: 8rpx 0; line-height: 1.6; }
-.comment-time { font-size: 22rpx; color: #B6BBCD; }
-.empty { text-align: center; padding: 40rpx 0; color: #8A90A6; font-size: 26rpx; }
+/* —— 正文 —— */
+.art-card { margin: var(--s-3) 0 0; }
+.art-title {
+  display: block; font-size: 42rpx; font-weight: 700; color: var(--ink);
+  line-height: 1.4; letter-spacing: .3rpx; margin: var(--s-2) 0 var(--s-3);
+}
+.meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-4); font-size: 24rpx; color: var(--muted); }
+.meta-item { display: flex; align-items: center; gap: 6rpx; }
+.content {
+  display: block; font-size: 30rpx; line-height: 1.9; color: var(--ink-2);
+  white-space: pre-wrap; word-break: break-word;
+}
 
-/* 底部评论输入 */
-.comment-bar { position: fixed; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 16rpx; padding: 16rpx 24rpx 24rpx; background: #ffffff; border-top: 2rpx solid #EDF1FB; box-shadow: 0 -6rpx 20rpx rgba(37, 63, 183, 0.04); }
-.comment-input { flex: 1; background: #F3F6FD; border-radius: 40rpx; padding: 18rpx 30rpx; font-size: 28rpx; }
-.send-btn { background: linear-gradient(135deg, #6D5BFF 0%, #3B82F6 100%); color: #fff; font-size: 30rpx; font-weight: 600; padding: 16rpx 34rpx; border-radius: 40rpx; box-shadow: 0 8rpx 20rpx rgba(79, 90, 255, 0.3); }
+/* —— 操作栏 —— */
+.acts { display: flex; gap: var(--s-2); margin: var(--s-3) 0 0; }
+.act {
+  flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; gap: var(--s-2);
+  padding: 22rpx 0; border-radius: var(--r-md); font-size: 28rpx; color: var(--ink-2);
+  background: var(--card); border: 1rpx solid var(--line); box-shadow: var(--sh-1);
+}
+.act:active { transform: scale(.99); }
+.act.on { border-color: var(--brand-line); background: var(--brand-soft); color: var(--brand); font-weight: 600; }
+.act-num { font-size: 30rpx; font-weight: 700; }
+.act-label { font-size: 27rpx; }
+
+/* —— 评论 —— */
+.pad-0 { padding: 0; overflow: hidden; }
+.cmt-body { display: flex; flex-direction: column; min-width: 0; }
+.cmt-user { font-size: 27rpx; font-weight: 600; color: var(--ink); }
+.cmt-time { font-size: 22rpx; color: var(--muted); flex: none; }
+.cmt-text { display: block; font-size: 28rpx; color: var(--ink-2); margin-top: 6rpx; line-height: 1.65; }
+
+/* —— 底部输入条 —— */
+.bar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
+  display: flex; align-items: center; gap: var(--s-2);
+  padding: 16rpx var(--gap) 24rpx;
+  background: var(--card); border-top: 1rpx solid var(--line);
+}
+.bar-input {
+  flex: 1; min-width: 0; background: var(--fill); border-radius: var(--r-full);
+  padding: 18rpx var(--s-4); font-size: 28rpx; color: var(--ink);
+}
+.bar-send {
+  flex: none; display: flex; align-items: center; gap: 4rpx;
+  padding: 18rpx 32rpx; border-radius: var(--r-full);
+  font-size: 28rpx; font-weight: 600; color: #fff;
+  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-2) 100%);
+  box-shadow: var(--sh-brand);
+}
+.bar-send:active { opacity: .92; }

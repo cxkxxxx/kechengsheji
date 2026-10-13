@@ -1,29 +1,112 @@
 
+import os
+import socket
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
-from app.core.config import UPLOAD_DIR
-import os
+from app.core.config import UPLOAD_DIR, LLM_API_KEY, LLM_MODEL, LLM_API_URL, DATABASE_URL
 from fastapi.openapi.docs import get_swagger_ui_html
+from sqlalchemy import text
 
 from app.core.database import engine
+from app.core.migrate import ensure_columns
 from app.models import Base
-from app.api.routes import auth, articles, posts, agent, bills, checkin, comments, favorites, admin
+from app.api.routes import auth, articles, posts, agent, bills, checkin, comments, favorites, admin, price, upload
 
 # 首次启动自动建表
 Base.metadata.create_all(bind=engine)
+# create_all 不补列，后加的列在这里补（幂等）
+_added = ensure_columns()
 # 首次启动自动创建默认管理员（admin/admin123）
 from app.api.routes.admin import _seed_admin
 _seed_admin()
 
+
+def _lan_ip() -> str:
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            s.connect(("8.8.8.8", 80))          # 不会真的发包，只为选出本机出口网卡
+            ip = s.getsockname()[0]
+        finally:
+            s.close()
+        return ip
+    except OSError:
+        return socket.gethostbyname(socket.gethostname())
+
+
+def _startup_banner():
+    # 控制台默认 GBK，输出用纯中文+ASCII，避免编码报错拖垮启动
+    port = os.getenv("PORT", "8000")
+    llm = "已配置 %s" % LLM_MODEL if LLM_API_KEY else "未配置 LLM_API_KEY（AI 助手会不可用）"
+    from app.services import best_price as _bp
+    _be = _bp.backend()
+    if _be["ok"]:
+        price_mode = "京东/天猫实时可用（best-price-mcp，第三方中转、共享日配额，京东侧可能整天限流）"
+    else:
+        price_mode = "降级（站内价格库 + 各平台搜索直达）；" + _be["reason"]
+    lines = [
+        "=" * 62,
+        " 省活攻略 后端已启动",
+        "   后端接口      http://127.0.0.1:%s" % port,
+        "   可视化接口文档 http://127.0.0.1:%s/docs     (Swagger，已中文化)" % port,
+        "   可视化管理后台 http://127.0.0.1:%s/admin    (默认账号 admin/admin123)" % port,
+        "   健康检查      http://127.0.0.1:%s/health" % port,
+        "   真机/手机预览  http://%s:%s" % (_lan_ip(), port),
+        "                 小程序预览前把 miniprogram/app.js 的 baseUrl 换成上面这个地址",
+        "   数据库        %s" % DATABASE_URL.split("@")[-1],
+        "   大模型        %s" % llm,
+        "   商品比价      %s" % price_mode,
+        "=" * 62,
+    ]
+    if _added:
+        lines.insert(-1, "   已自动补齐字段: " + ", ".join(_added))
+    try:
+        print("\n".join(lines))
+    except UnicodeEncodeError:
+        print("\n".join(l.encode("ascii", "ignore").decode() for l in lines))
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    _startup_banner()
+    yield
+
+
 app = FastAPI(
     title="省活攻略 API",
     description="基于大语言模型的省钱攻略智能推荐平台后端",
-    version="1.0.0",
+    version="1.1.0",
     docs_url=None,
+    lifespan=lifespan,
 )
+
+
+@app.get("/health", tags=["系统"])
+def health():
+    # 给小程序/运维探活用：数据库连通性 + 大模型配置状态
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        db_ok = True
+    except Exception as e:
+        db_ok = False
+        db_error = str(e)[:120]
+    payload = {
+        "status": "ok" if db_ok else "degraded",
+        "database": "connected" if db_ok else "unreachable",
+        "tables": len(Base.metadata.tables),
+        "llm_configured": bool(LLM_API_KEY),
+        "llm_model": LLM_MODEL,
+        "llm_base": LLM_API_URL.split("/v4")[0],
+    }
+    if not db_ok:
+        payload["database_error"] = db_error
+    return payload
 
 # 挂载静态上传目录（图片预览等）
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -58,6 +141,8 @@ app.include_router(favorites.router,  prefix="/favorites",  tags=["收藏"])
 app.include_router(agent.router,     prefix="/agent",     tags=["AI智能体"])
 app.include_router(bills.router,     prefix="/bills",      tags=["账单管理"])
 app.include_router(checkin.router,    prefix="/checkin",    tags=["省钱打卡"])
+app.include_router(price.router,      prefix="/price",      tags=["商品比价"])
+app.include_router(upload.router,    prefix="/upload",     tags=["图片上传"])
 app.include_router(admin.router)
 
 @app.get("/")

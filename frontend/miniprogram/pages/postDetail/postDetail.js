@@ -1,10 +1,13 @@
 // 帖子详情逻辑
 const { request } = require('../../utils/request')
+const { imageGrid } = require('../../utils/util')
 const app = getApp()
 
 Page({
   data: {
     post: {},
+    gridCls: 'imgs',
+    gridList: [],
     comments: [],
     commentText: '',
     favorited: false,
@@ -22,8 +25,11 @@ Page({
         request('/posts/' + this.postId),
         request('/comments?target_type=post&target_id=' + this.postId)
       ])
+      const grid = imageGrid((post && post.images) || [], 9)
       this.setData({
         post: post || {},
+        gridCls: grid.cls,
+        gridList: grid.list,
         comments: comments || []
       })
       if (app.globalData.token) {
@@ -33,6 +39,11 @@ Page({
         } catch (e) {}
       }
     } catch (e) { console.error(e) }
+  },
+
+  previewImage(e) {
+    const i = e.currentTarget.dataset.i
+    wx.previewImage({ current: this.data.gridList[i], urls: this.data.gridList })
   },
 
   async likePost() {

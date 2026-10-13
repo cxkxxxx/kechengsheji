@@ -7,18 +7,19 @@
     "pages/mine/mine",
     "pages/login/login",
     "pages/articleDetail/articleDetail",
+    "pages/articleCreate/articleCreate",
     "pages/postDetail/postDetail",
     "pages/postCreate/postCreate"
   ],
   "window": {
-    "navigationBarBackgroundColor": "#4B3FE3",
+    "navigationBarBackgroundColor": "#2A1FA8",
     "navigationBarTextStyle": "white",
     "navigationBarTitleText": "省活攻略",
-    "backgroundColor": "#F3F6FD"
+    "backgroundColor": "#F6F7FB"
   },
   "tabBar": {
-    "color": "#9AA0B5",
-    "selectedColor": "#5046E5",
+    "color": "#8A90A6",
+    "selectedColor": "#4433E0",
     "list": [
       { "pagePath": "pages/index/index", "text": "攻略", "iconPath": "images/tabbar/index.png", "selectedIconPath": "images/tabbar/index_active.png" },
       { "pagePath": "pages/community/community", "text": "社区", "iconPath": "images/tabbar/community.png", "selectedIconPath": "images/tabbar/community_active.png" },

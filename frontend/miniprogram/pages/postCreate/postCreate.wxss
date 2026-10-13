@@ -1,5 +1,15 @@
-.container { padding: 28rpx; }
-.input-title { font-size: 34rpx; font-weight: 700; border-bottom: 1rpx solid #EDF1FB; padding: 18rpx 0; }
-.input-content { width: 100%; height: 400rpx; margin-top: 16rpx; font-size: 28rpx; line-height: 1.7; }
-.input-tags { margin-top: 16rpx; font-size: 26rpx; color: #8A90A6; }
-.btn-primary { margin-top: 48rpx; }
+/* 发帖页 */
+.pc-head {
+  display: flex; align-items: center; gap: var(--s-2);
+  padding: 24rpx var(--gap); background: #fff;
+}
+.pc-head .ic-back { width: 40rpx; height: 40rpx; }
+.pc-head-title { font-size: 32rpx; font-weight: 600; }
+
+.pc-title { font-size: 36rpx; font-weight: 600; padding: 8rpx 0; }
+.pc-content { width: 100%; min-height: 300rpx; font-size: 29rpx; line-height: 1.7; }
+.pc-count { text-align: right; font-size: 22rpx; color: var(--muted); margin-top: 8rpx; }
+
+.pc-foot { padding: var(--s-4) var(--gap) 60rpx; }
+.pc-foot button { width: 100%; border: none; }
+.pc-foot button::after { border: none; }

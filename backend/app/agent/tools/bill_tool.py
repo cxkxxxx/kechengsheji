@@ -3,7 +3,7 @@ from datetime import datetime, date, timedelta
 
 from sqlalchemy import func
 
-from app.agent.tools.registry import register_tool
+from app.agent.tools.registry import register_tool, make_table, ToolResult
 from app.models.bill import Bill
 from app.models.budget_plan import BudgetPlan
 
@@ -72,7 +72,7 @@ def _month_total(sess, user_id: int, month: str) -> float:
         },
     },
 )
-def analyze_bills(month: str = "", user_id: int = 0, db=None, **kwargs) -> str:
+def analyze_bills(month: str = "", user_id: int = 0, db=None, **kwargs):
     if db is None:
         return "数据库不可用"
     month = _norm_month(month)
@@ -125,13 +125,20 @@ def analyze_bills(month: str = "", user_id: int = 0, db=None, **kwargs) -> str:
         L.append("环比：%s 没有账单数据，无法比较" % prev)
 
     plan = (db.query(BudgetPlan).filter(BudgetPlan.user_id == user_id, BudgetPlan.month == month).first())
-    if plan and plan.target_amount:
-        L.append("省钱目标：目标 %.2f 元，已省 %.2f 元（达成 %.0f%%），连续打卡 %d 天"
-                 % (float(plan.target_amount or 0), float(plan.saved_amount or 0),
-                    float(plan.saved_amount or 0) / float(plan.target_amount) * 100,
-                    int(plan.checkin_days or 0)))
+    plan_limit = float(plan.spend_limit or 0) if plan else 0
+    if plan and (plan.target_amount or plan_limit):
+        if plan.target_amount:
+            L.append("省钱目标：目标 %.2f 元，已省 %.2f 元（达成 %.0f%%），连续打卡 %d 天"
+                     % (float(plan.target_amount or 0), float(plan.saved_amount or 0),
+                        float(plan.saved_amount or 0) / float(plan.target_amount) * 100,
+                        int(plan.checkin_days or 0)))
+        if plan_limit:
+            L.append("支出上限：上限 %.2f 元，已花 %.2f 元（用掉 %.0f%%），%s"
+                     % (plan_limit, total, total / plan_limit * 100,
+                        "已超支 %.2f 元" % (total - plan_limit) if total > plan_limit
+                        else "还可花 %.2f 元" % (plan_limit - total)))
     else:
-        L.append("省钱目标：本月尚未设定")
+        L.append("本月目标：尚未设定（既没设省钱目标也没设支出上限）")
 
     big = [r for r in ranked if total > 0 and float(r.total or 0) / total >= 0.35]
     if big:
@@ -142,9 +149,35 @@ def analyze_bills(month: str = "", user_id: int = 0, db=None, **kwargs) -> str:
     if asked != month:
         # 回落说明放在最后：写在开头会让下一轮模型只看到「没有账单」就拒绝作答
         L.append("补充：%s 没有任何记录，以上是该用户最近有数据的 %s，请照这份数据分析并告知用户。" % (asked, month))
+    L.append("分类占比和大额明细已经由界面渲染成表格了，正文不要再把这些数字逐条复述一遍。")
     L.append("请基于以上真实数字给出 3-5 条可落地的省钱建议；回复时必须沿用上面的月份 %s，"
              "并引用具体金额或占比，不要改口、不要编造数据。" % month)
-    return "\n".join(L)
+
+    tables = [make_table(
+        "%s 分类占比" % month,
+        ["分类", "金额", "占比", "笔数"],
+        [[r.category or "其他", "¥%.2f" % float(r.total or 0),
+          "%.0f%%" % (float(r.total or 0) / total * 100 if total else 0), r.cnt]
+         for r in ranked],
+        "合计 ¥%.2f｜%d 笔｜日均 ¥%.2f" % (total, count, total / days),
+    )]
+    if tops:
+        tables.append(make_table(
+            "金额最高的几笔", ["日期", "分类", "金额", "备注"],
+            [[b.bill_date.strftime("%m-%d") if b.bill_date else "—", b.category or "其他",
+              "¥%.2f" % float(b.amount or 0), b.source or "—"] for b in tops],
+        ))
+    if prev_total > 0:
+        delta = total - prev_total
+        tables.append(make_table(
+            "环比", ["月份", "支出", "变化"],
+            [[prev, "¥%.2f" % prev_total, "—"],
+             [month, "¥%.2f" % total,
+              "%s¥%.2f（%s%.1f%%）" % ("多花" if delta >= 0 else "少花", abs(delta),
+                                      "+" if delta >= 0 else "-",
+                                      abs(delta) / prev_total * 100)]],
+        ))
+    return ToolResult("\n".join(L), [], tables)
 
 
 @register_tool(
@@ -162,10 +195,11 @@ def analyze_bills(month: str = "", user_id: int = 0, db=None, **kwargs) -> str:
                 "properties": {
                     "amount": {"type": "number", "description": "金额（元），正数"},
                     "category": {"type": "string", "enum": CATEGORIES, "description": "消费分类"},
-                    "source": {"type": "string", "description": "简短备注，例如 午餐、打车、超市日用品"},
+                    "source": {"type": "string", "description": "简短备注，例如 午餐、打车、超市日用品；读不出来就留空，别填「看不清」"},
                     "bill_date": {"type": "string", "description": "消费日期 YYYY-MM-DD；用户说「昨天/上周」时换算成具体日期，留空按今天"},
                 },
-                "required": ["amount", "category", "source"],
+                # source 不列进 required：列了就必须填点什么，模型会拿「看不清」这种占位符来占位
+                "required": ["amount", "category"],
             },
         },
     },
@@ -186,7 +220,7 @@ def add_bill(bills, user_id: int = 0, db=None, **kwargs) -> str:
             user_id=user_id,
             amount=amount,
             category=_as_category(item.get("category")),
-            source=str(item.get("source") or "").strip()[:100],
+            source=_as_source(item.get("source")),
             bill_date=_as_date(item.get("bill_date")) or today,
         )
         db.add(bill)
@@ -205,6 +239,14 @@ def add_bill(bills, user_id: int = 0, db=None, **kwargs) -> str:
     L.append("本月（%s）累计支出 %.2f 元。" % (month, _month_total(db, user_id, month)))
     L.append("（记错了可以到「账单」页长按那条记录删除）")
     return "\n".join(L)
+
+
+def _as_source(v):
+    """备注里的占位符不当真：图片看不清时模型会往这里填「看不清」，落库就成了垃圾数据。"""
+    s = str(v or "").strip()
+    if s in ("", "看不清", "未知", "无", "没有", "N/A", "n/a", "-", "无备注"):
+        return ""
+    return s[:100]
 
 
 def _as_amount(v):

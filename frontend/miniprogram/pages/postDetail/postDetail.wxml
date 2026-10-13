@@ -1,45 +1,60 @@
 <!-- 帖子详情页 -->
 <view class="container">
-  <view class="post">
-    <text class="title">{{post.title}}</text>
+  <view class="card post">
+    <text class="post-title">{{post.title}}</text>
     <view class="meta">
-      <text>用户{{post.user_id}}</text>
-      <text>{{post.created_at}}</text>
+      <view class="meta-item"><text class="ic ic-user ic-sm"></text><text>用户{{post.user_id}}</text></view>
+      <view class="meta-item"><text class="ic ic-clock ic-sm"></text><text>{{post.created_at}}</text></view>
     </view>
     <text class="content">{{post.content}}</text>
+
+    <!-- 配图：详情页铺完整九宫格，点开可放大 -->
+    <view class="{{gridCls}}" wx:if="{{gridList.length}}">
+      <view class="img-cell" wx:for="{{gridList}}" wx:for-item="img" wx:key="*this"
+            bindtap="previewImage" data-i="{{index}}">
+        <image src="{{img}}" mode="aspectFill" />
+      </view>
+    </view>
+
     <view class="tags" wx:if="{{post.tags}}">
-      <text class="tag" wx:for="{{post.tags}}" wx:key="*this" wx:if="{{item}}">{{item}}</text>
+      <text class="chip chip-sm chip-grey" wx:for="{{post.tags}}" wx:key="*this" wx:if="{{item}}">{{item}}</text>
     </view>
   </view>
 
   <!-- 操作栏 -->
   <view class="actions">
     <view class="action {{liked ? 'active' : ''}}" bindtap="likePost">
-      <text>{{liked ? '已赞' : '点赞'}} ({{post.likes || 0}})</text>
+      <text class="ic {{liked ? 'ic-heart-on' : 'ic-heart'}}"></text>
+      <text>点赞 {{post.likes || 0}}</text>
     </view>
     <view class="action {{favorited ? 'active' : ''}}" bindtap="toggleFavorite">
+      <text class="ic ic-gift"></text>
       <text>{{favorited ? '已收藏' : '收藏'}}</text>
     </view>
     <view class="action">
-      <text>评论 ({{post.comments_count || 0}})</text>
+      <text class="ic ic-comment"></text>
+      <text>评论 {{post.comments_count || 0}}</text>
     </view>
   </view>
 
   <!-- 评论区 -->
   <view class="comments-section">
+    <view class="section-title-pad">评论</view>
     <view class="comment-item" wx:for="{{comments}}" wx:key="id">
       <text class="comment-user">用户{{item.user_id}}</text>
       <text class="comment-content">{{item.content}}</text>
       <text class="comment-time">{{item.created_at}}</text>
     </view>
     <view class="empty" wx:if="{{comments.length === 0}}">
-      <text>暂无评论</text>
+      <text class="ic ic-comment empty-ic"></text>
+      <text class="empty-text">还没有评论</text>
+      <text class="desc empty-tip">说说你的看法</text>
     </view>
   </view>
 
   <!-- 底部评论输入 -->
   <view class="comment-bar">
-    <input class="comment-input" placeholder="写评论..." value="{{commentText}}" bindinput="onCommentInput" confirm-type="send" bindconfirm="submitComment" />
+    <input class="comment-input" placeholder="写评论…" placeholder-class="ph" value="{{commentText}}" bindinput="onCommentInput" confirm-type="send" bindconfirm="submitComment" />
     <view class="send-btn" bindtap="submitComment">发送</view>
   </view>
 </view>

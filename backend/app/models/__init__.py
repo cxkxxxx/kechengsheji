@@ -1,4 +1,4 @@
-# ????????? create_all() ?????????
+# 汇总导出所有模型，保证 create_all() 一次建出全部表
 from app.models.user import User
 from app.models.article import Article
 from app.models.comment import Comment

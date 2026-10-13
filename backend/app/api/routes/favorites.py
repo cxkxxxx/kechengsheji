@@ -47,10 +47,24 @@ def my_favorites(
     if target_type:
         query = query.filter(Favorite.target_type == target_type)
     items = query.order_by(Favorite.created_at.desc()).all()
+
+    # 带上标题，前端列表才能显示「收了什么」而不是一个裸 ID
+    from app.models.article import Article
+    from app.models.post import Post
+    art_ids = [f.target_id for f in items if f.target_type == "article"]
+    post_ids = [f.target_id for f in items if f.target_type == "post"]
+    titles = {}
+    if art_ids:
+        for a in db.query(Article.id, Article.title).filter(Article.id.in_(art_ids)).all():
+            titles[("article", a[0])] = a[1]
+    if post_ids:
+        for p in db.query(Post.id, Post.title).filter(Post.id.in_(post_ids)).all():
+            titles[("post", p[0])] = p[1]
     return success([{
         "id": f.id,
         "target_type": f.target_type,
         "target_id": f.target_id,
+        "title": titles.get((f.target_type, f.target_id)) or "内容已删除",
         "created_at": str(f.created_at) if f.created_at else None,
     } for f in items])
 

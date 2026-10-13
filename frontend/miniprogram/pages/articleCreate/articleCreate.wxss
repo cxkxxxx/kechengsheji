@@ -1,0 +1,22 @@
+/* 投稿攻略 */
+.ac-head .hero { border-radius: 0 0 var(--r-lg) var(--r-lg); margin-bottom: 0; }
+.ac-title { font-size: 34rpx; font-weight: 600; padding: 8rpx 0; }
+.ac-content { width: 100%; min-height: 420rpx; font-size: 29rpx; line-height: 1.75; }
+.ac-count { text-align: right; font-size: 22rpx; color: var(--muted); margin-top: 8rpx; }
+
+/* 封面标记与「设为封面」 */
+.up-cover, .up-set {
+  position: absolute; left: 0; bottom: 0; font-size: 20rpx; color: #fff;
+  background: rgba(19, 23, 40, .62); padding: 6rpx 12rpx; border-radius: 0 var(--r-sm) 0 var(--r-sm);
+}
+.up-set { background: rgba(68, 51, 224, .85); }
+.up-set:active { background: var(--brand-deep); }
+
+.ac-foot { padding: var(--s-4) var(--gap) var(--s-2); }
+.ac-foot button { width: 100%; border: none; }
+.ac-foot button::after { border: none; }
+.ac-tip { display: block; text-align: center; font-size: 22rpx; color: var(--muted); margin-top: var(--s-2); }
+
+.mine-row { display: flex; align-items: center; gap: var(--s-2); padding: var(--s-3) var(--s-4); }
+.mine-title { font-size: 28rpx; font-weight: 500; line-height: 1.45; }
+.mine-meta { display: flex; align-items: center; gap: var(--s-2); margin-top: 10rpx; flex-wrap: wrap; }

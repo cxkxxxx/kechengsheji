@@ -1,5 +1,6 @@
 // 首页逻辑：获取攻略文章列表（每屏固定 8 条，下拉刷新轮换展示未看过的）
 const { request } = require('../../utils/request')
+const { fullUrl } = require('../../utils/util')
 
 const PAGE = 8 // 每屏固定显示条数
 
@@ -14,7 +15,20 @@ Page({
     refreshing: false
   },
 
-  onLoad() { this.loadArticles() },
+  onLoad() {
+    this.loadCategories()
+    this.loadArticles()
+  },
+
+  // 分类跟着已有内容走：写死一份清单的话，新分类的攻略永远筛不出来
+  async loadCategories() {
+    try {
+      const cats = await request('/articles/categories')
+      if (Array.isArray(cats) && cats.length) {
+        this.setData({ categories: ['全部'].concat(cats) })
+      }
+    } catch (e) { /* 拿不到就用默认清单 */ }
+  },
 
   // 初始/切换分类/搜索：加载全量，显示前 8 条
   async loadArticles(force = false) {
@@ -80,7 +94,8 @@ Page({
   async fetchList(force = false) {
     const cat = this.data.currentCategory === '全部' ? '' : this.data.currentCategory
     const data = await request('/articles?category=' + cat, 'GET', {}, force)
-    this._all = data || []
+    // cover 存的是 /static/ 相对路径，<image> 要绝对地址
+    this._all = (data || []).map(a => Object.assign({}, a, { coverUrl: fullUrl(a.cover) }))
     return this._all
   },
 
@@ -110,5 +125,19 @@ Page({
   // 跳转文章详情
   goDetail(e) {
     wx.navigateTo({ url: '/pages/articleDetail/articleDetail?id=' + e.currentTarget.dataset.id })
+  },
+
+  goCreate() {
+    wx.navigateTo({ url: '/pages/articleCreate/articleCreate' })
+  },
+
+  // 问 AI：带着当前分类跳优惠情报员，省得用户再打一遍字
+  goAsk() {
+    const cat = this.data.currentCategory === '全部' ? '' : this.data.currentCategory
+    getApp().globalData.pendingAsk = {
+      agent: 'coupon',
+      question: (cat ? cat + '方面' : '') + '最近有什么值得薅的羊毛和省钱攻略？',
+    }
+    wx.switchTab({ url: '/pages/assistant/assistant' })
   }
 })

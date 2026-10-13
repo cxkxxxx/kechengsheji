@@ -1,5 +1,8 @@
 import inspect
 import json
+import logging
+
+log = logging.getLogger("agent.tools")
 
 # 全局工具注册表
 _TOOLS = {}
@@ -54,10 +57,35 @@ def get_tool_definitions() -> list:
     return result
 
 
-def execute_tool(name: str, args_str, user_id: int, db):
-    # 执行工具，返回 (结果字符串, 是否为完整回复)
+class ToolResult:
+    """工具返回值：给模型看的文本 + 给小程序渲染的结构化卡片和表格。
+
+    tables 用「表头 + 字符串二维数组」而不是对象数组：小程序端 wx:for 直接套两层就出表格，
+    不用每列都约定 key，工具侧也不容易拼错字段名。
+    """
+
+    def __init__(self, text: str, links=None, tables=None):
+        self.text = text
+        self.links = links or []
+        self.tables = tables or []
+
+
+def make_table(title: str, head: list, rows: list, note: str = "") -> dict:
+    """拼一张表。单元格一律转成字符串，None 显示成「—」而不是「None」。"""
+    return {
+        "title": title,
+        "head": [str(h) for h in head],
+        "rows": [["—" if c is None else str(c) for c in r] for r in rows],
+        "note": note,
+    }
+
+
+def execute_tool(name: str, args_str, user_id: int, db, context: dict = None):
+    # 执行工具，返回 (结果字符串, 是否为完整回复, 可跳转链接列表, 表格列表)
+    # context 是引擎知道的现场信息（目前只有本轮用户原文）。实测模型该填 link 参数时经常填
+    # 空，把「抄对链接」这件事交给它不如让工具自己能拿到原文兜底。
     if name not in _TOOLS:
-        return (f"工具 {name} 不存在", False)
+        return (f"工具 {name} 不存在", False, [], [])
     try:
         # args_str 可能是 dict 或 JSON 字符串
         if isinstance(args_str, dict):
@@ -66,15 +94,21 @@ def execute_tool(name: str, args_str, user_id: int, db):
             kwargs = json.loads(args_str)
     except Exception:
         kwargs = {}
+    if not isinstance(kwargs, dict):
+        kwargs = {}              # 模型也可能吐出 "null" 或一个数组，直接 ** 会 TypeError
     missing = [k for k in _TOOLS[name]["required"] if not kwargs.get(k)]
     if missing:
         # 把缺哪个参数说清楚，模型下一轮能自己纠正，而不是抛 TypeError 变成一堆乱码提示
-        return ("缺少必填参数：" + "、".join(missing) + "，请带上该信息重新调用本工具", False)
+        return ("缺少必填参数：" + "、".join(missing) + "，请带上该信息重新调用本工具", False, [], [])
     try:
-        result = _TOOLS[name]["function"](**kwargs, user_id=user_id, db=db)
-        return (str(result), name in _FINAL_TOOLS)
+        result = _TOOLS[name]["function"](**kwargs, user_id=user_id, db=db,
+                                          context=context or {})
+        if isinstance(result, ToolResult):
+            return (str(result.text), name in _FINAL_TOOLS, result.links, result.tables)
+        return (str(result), name in _FINAL_TOOLS, [], [])
     except Exception as e:
-        return (f"工具执行错误：{str(e)}", False)
+        log.exception("工具 %s 执行失败", name)
+        return (f"工具执行错误：{str(e)}", False, [], [])
 
 
 # 自动导入所有工具文件，触发注册

@@ -1,36 +1,104 @@
 // AI助手页逻辑：与省钱Agent对话（流式 + 图片上传 + 多智能体）
+const { request } = require('../../utils/request')
+
+// 卡片数据（后端下发 / 历史回显）→ 渲染用的形状，两处共用一份
+function toCards(items) {
+  return (items || []).map((x, i) => ({
+    key: (x.kind || 'link') + '-' + i,
+    label: x.label || x.platform || '查看商品',
+    platform: x.platform || '',
+    url: x.url || '',
+    priceText: (x.price || x.price === 0) ? ('¥' + x.price) : ''
+  })).filter(x => x.url)
+}
+
+// 表格数据（后端下发 / 历史回显）→ 渲染形状，两处共用一份
+function toTables(items) {
+  return (items || [])
+    .filter(t => t && Array.isArray(t.head) && Array.isArray(t.rows) && t.rows.length)
+    .map((t, i) => ({
+      key: 'tbl-' + i,
+      title: t.title || '',
+      head: t.head,
+      rows: t.rows,
+      note: t.note || '',
+      // 列数决定单元格宽度分配，4 列以上首列要收窄
+      cls: 'tbl-' + t.head.length
+    }))
+}
+
 const QUICK = {
-  default: ['冰箱有西红柿鸡蛋，能做啥？', '2000元扫地机器人推荐', '帮我分析这组账单', '超市什么时候最便宜？'],
-  coupon: ['最近有什么优惠活动？', '扫地机器人哪个平台便宜？', '现在薅什么羊毛最划算？'],
-  budget: ['分析一下我这月账单', '我的省钱目标达成了吗？', '帮我管管这个月预算']
+  coupon: ['小米15 手机哪个平台便宜？', '最近有什么优惠活动？', '茅台飞天53度现在多少钱？'],
+  budget: ['分析一下我这月账单', '我的省钱目标达成了吗？', '昨晚外卖 18 块，帮我记上']
 }
 const PLACEHOLDER = {
-  default: '问我任何省钱问题...',
-  coupon: '输入商品/想问的优惠活动...',
-  budget: '输入你的消费/预算问题...'
+  coupon: '复制商品标题发我，比京东和天猫的到手价…',
+  budget: '说消费让我记账，或问本月账单…'
 }
+const DEFAULT_AGENT = 'coupon'
 
 Page({
   data: {
     agents: [
-      { key: 'default', name: '抠门达人', emoji: '✨', tag: '全科' },
-      { key: 'coupon', name: '优惠情报员', emoji: '🧧', tag: '薅羊毛' },
-      { key: 'budget', name: '理财管家', emoji: '📊', tag: '管钱' }
+      { key: 'coupon', name: '优惠情报员', emoji: '🧧', tag: '薅羊毛 · 比价' },
+      { key: 'budget', name: '理财管家', emoji: '📊', tag: '记账 · 预算' }
     ],
-    currentAgent: 'default',
-    placeholder: PLACEHOLDER.default,
+    currentAgent: DEFAULT_AGENT,
+    placeholder: PLACEHOLDER[DEFAULT_AGENT],
     messages: [],
     inputValue: '',
     image: null,        // 当前待发送的图片 { url, filename }
     uploading: false,
     sending: false,
     scrollToId: '',
-    quickQuestions: QUICK.default
+    quickQuestions: QUICK[DEFAULT_AGENT]
   },
 
   onPullDownRefresh() {
     wx.stopPullDownRefresh()
     wx.showToast({ title: '对话已保持', icon: 'none' })
+  },
+
+  onLoad() { this.loadHistory(this.data.currentAgent) },
+
+  // 拉回该智能体的历史对话：小程序重进后界面能接着上次看
+  // 记忆本来就存着，只是界面上看不见，会让人觉得「它怎么突然知道我在说什么」
+  async loadHistory(agent) {
+    const key = agent || this.data.currentAgent
+    try {
+      const data = await request('/agent/history?agent=' + key + '&limit=40')
+      if (this.data.sending || this._skipRestore || key !== this.data.currentAgent) return
+      const msgs = ((data && data.messages) || []).map(m => ({
+        id: m.id, role: m.role, content: m.content, toolUsed: m.tool_used,
+        links: m.role === 'assistant' ? toCards(m.links) : [],
+        tables: m.role === 'assistant' ? toTables(m.tables) : []
+      }))
+      this.setData({ messages: msgs, scrollToId: msgs.length ? 'msg-' + msgs[msgs.length - 1].id : '' })
+    } catch (e) { console.error(e) }
+  },
+
+  // 清空当前智能体的记忆与界面（不影响其它两个专家）
+  clearChat() {
+    const that = this
+    wx.showModal({
+      title: '清空对话',
+      content: '会同时清掉「' + this._agentName() + '」的上下文记忆，确认？',
+      confirmText: '清空', confirmColor: '#FF6B6B',
+      success(res) {
+        if (!res.confirm) return
+        request('/agent/history?agent=' + that.data.currentAgent, 'DELETE').then(() => {
+          that._skipRestore = true
+          that.setData({ messages: [] })
+          wx.showToast({ title: '已清空', icon: 'success' })
+          setTimeout(() => { that._skipRestore = false }, 1000)
+        }).catch(err => console.error(err))
+      }
+    })
+  },
+
+  _agentName() {
+    const a = this.data.agents.filter(x => x.key === this.data.currentAgent)[0]
+    return a ? a.name : 'AI 助手'
   },
 
   // 从账单页「让 AI 分析」跳过来时，自动切到对应专家并把问题发出去
@@ -39,7 +107,7 @@ Page({
     const pending = app && app.globalData && app.globalData.pendingAsk
     if (!pending || !pending.question) return
     app.globalData.pendingAsk = null
-    const key = pending.agent && QUICK[pending.agent] ? pending.agent : 'default'
+    const key = pending.agent && QUICK[pending.agent] ? pending.agent : DEFAULT_AGENT
     this.setData({
       currentAgent: key,
       messages: [],
@@ -56,9 +124,10 @@ Page({
     this.setData({
       currentAgent: key,
       messages: [],
-      quickQuestions: QUICK[key] || QUICK.default,
-      placeholder: PLACEHOLDER[key] || PLACEHOLDER.default
+      quickQuestions: QUICK[key] || QUICK[DEFAULT_AGENT],
+      placeholder: PLACEHOLDER[key] || PLACEHOLDER[DEFAULT_AGENT]
     })
+    this.loadHistory(key)
   },
 
   onInput(e) {
@@ -85,7 +154,7 @@ Page({
     const token = (app && app.globalData && app.globalData.token) || ''
     this.setData({ uploading: true })
     wx.uploadFile({
-      url: baseUrl + '/agent/upload',
+      url: baseUrl + '/upload/image',
       filePath: filePath,
       name: 'file',
       header: { 'Authorization': token ? 'Bearer ' + token : '' },
@@ -96,7 +165,8 @@ Page({
           that.setData({ image: { url: baseUrl + data.data.url, filename: data.data.filename } })
           wx.showToast({ title: '图片已添加', icon: 'none' })
         } else {
-          wx.showToast({ title: (data && data.message) || '上传失败', icon: 'none' })
+          // 后端大小/格式校验走 HTTPException，文案在 detail 而不是 message
+          wx.showToast({ title: (data && (data.detail || data.message)) || '上传失败', icon: 'none' })
         }
       },
       fail() {
@@ -127,7 +197,7 @@ Page({
       image: img ? img.url : ''
     }
     const loadingId = Date.now() + 1
-    const loadingMsg = { id: loadingId, role: 'assistant', content: '' }
+    const loadingMsg = { id: loadingId, role: 'assistant', content: '', links: [], tables: [] }
     this.setData({
       messages: [...this.data.messages, userMsg, loadingMsg],
       inputValue: '',
@@ -137,6 +207,8 @@ Page({
     this._loadingId = loadingId
     this._reply = ''
     this._toolUsed = 'chat'
+    this._links = []
+    this._tables = []
     this._sseBuf = ''
 
     const imageUrls = img ? [img.filename] : []
@@ -192,6 +264,10 @@ Page({
           that.updateLoading(evt.text, that._toolUsed)
         } else if (evt.type === 'meta') {
           that._toolUsed = evt.tool_used
+        } else if (evt.type === 'links') {
+          that.attachLinks(evt.items || [])
+        } else if (evt.type === 'tables') {
+          that.attachTables(evt.items || [])
         } else if (evt.type === 'done') {
           if (settled) return
           settled = true
@@ -290,6 +366,46 @@ Page({
     if (!msgs[i] || msgs[i].id !== this._loadingId) return
     msgs[i] = { ...msgs[i], content: (msgs[i].content || '') + text, toolUsed: toolUsed }
     this.setData({ messages: msgs, scrollToId: 'msg-' + this._loadingId })
+  },
+
+  // 比价卡片：链接由后端结构化下发，不让模型在正文里复述 URL（会改写或编造）
+  attachLinks(items) {
+    const cards = toCards(items)
+    this._links = cards
+    const msgs = this.data.messages
+    const last = msgs[msgs.length - 1]
+    if (!last || last.id !== this._loadingId) return
+    msgs[msgs.length - 1] = { ...last, links: cards }
+    this.setData({ messages: msgs })
+  },
+
+  // 表格同理：数字对比由后端算好直接渲染，正文只留结论
+  attachTables(items) {
+    const tables = toTables(items)
+    this._tables = tables
+    const msgs = this.data.messages
+    const last = msgs[msgs.length - 1]
+    if (!last || last.id !== this._loadingId) return
+    msgs[msgs.length - 1] = { ...last, tables }
+    this.setData({ messages: msgs, scrollToId: 'msg-' + this._loadingId })
+  },
+
+  // 小程序不能直接打开任意 https 链接，复制到剪贴板让用户去浏览器/对应 App 打开
+  copyLink(e) {
+    const url = e.currentTarget.dataset.url
+    const label = e.currentTarget.dataset.label || '链接'
+    if (!url) return
+    wx.setClipboardData({
+      data: url,
+      success() {
+        wx.showModal({
+          title: label + ' 链接已复制',
+          content: '小程序无法直接打开外部网址。打开手机浏览器或对应 App，粘贴到地址栏/搜索框即可。',
+          showCancel: false, confirmText: '知道了'
+        })
+      },
+      fail() { wx.showToast({ title: '复制失败', icon: 'none' }) }
+    })
   },
 
   finishStream() {

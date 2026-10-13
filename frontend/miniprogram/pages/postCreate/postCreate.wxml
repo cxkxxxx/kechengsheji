@@ -1,9 +1,48 @@
-<!-- 发帖页 -->
+<!-- 发帖页：文字 + 最多 9 张图 -->
 <view class="container">
-  <input class="input-title" placeholder="标题" bindinput="onTitle" value="{{title}}" />
-  <textarea class="input-content" placeholder="分享你的省钱经验..." bindinput="onContent" value="{{content}}" />
-  <view class="tag-row">
-    <input class="input-tags" placeholder="标签（逗号分隔）" bindinput="onTags" value="{{tags}}" />
+  <view class="pc-head">
+    <view class="ic ic-back" bindtap="back"></view>
+    <text class="pc-head-title">发布分享</text>
   </view>
-  <button class="btn-primary" bindtap="submitPost">发布</button>
+
+  <view class="card">
+    <input class="pc-title" placeholder="标题，一句话说清你的省钱经验" placeholder-class="ph"
+           maxlength="50" bindinput="onTitle" value="{{title}}" />
+    <view class="divider"></view>
+    <textarea class="pc-content" placeholder="展开说说：在哪个平台买的、多少钱、怎么发现的…"
+              placeholder-class="ph" maxlength="2000" bindinput="onContent" value="{{content}}" />
+    <view class="pc-count num">{{content.length}}/2000</view>
+  </view>
+
+  <view class="card">
+    <view class="flex-between">
+      <text class="label" style="margin:0">图片<text class="desc" style="margin-left:12rpx">{{images.length}}/{{maxImages}}</text></text>
+      <text class="desc">带图的分享更受欢迎</text>
+    </view>
+    <view class="uploader">
+      <view class="up-cell" wx:for="{{shown}}" wx:key="*this">
+        <image src="{{item}}" mode="aspectFill" bindtap="previewImage" data-i="{{index}}" />
+        <view class="up-mask" wx:if="{{progress && index === shown.length - 1}}">{{progress}}</view>
+        <view class="up-del" catchtap="removeImage" data-i="{{index}}">
+          <text class="ic ic-close ic-sm"></text>
+        </view>
+      </view>
+      <view class="up-add" wx:if="{{images.length < maxImages}}" bindtap="addImages">
+        <text class="ic {{uploading ? 'ic-clock' : 'ic-camera'}}"></text>
+        <text>{{uploading ? '上传中' : '添加图片'}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="card">
+    <text class="label">标签</text>
+    <input class="input" placeholder="用逗号分隔，例如：外卖,超市" placeholder-class="ph"
+           bindinput="onTags" value="{{tags}}" />
+  </view>
+
+  <view class="pc-foot">
+    <button class="btn-primary {{uploading ? 'btn-disabled' : ''}}" bindtap="submitPost">
+      {{uploading ? '图片上传中…' : '发布'}}
+    </button>
+  </view>
 </view>

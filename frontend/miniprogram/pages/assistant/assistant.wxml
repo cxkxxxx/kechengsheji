@@ -1,25 +1,26 @@
-<!-- AI助手页：多专家对话（流式 + 图片 + 账单联动） -->
+<!-- AI助手页：两位专家对话（流式 + 图片 + 表格 + 账单联动） -->
 <view class="page">
-  <!-- 专家选择器 -->
-  <scroll-view scroll-x class="agent-bar" enhanced show-scrollbar="{{false}}">
-    <view class="agent-chip {{currentAgent === item.key ? 'active' : ''}}"
-          wx:for="{{agents}}" wx:key="key"
-          bindtap="switchAgent" data-key="{{item.key}}">
-      <text class="agent-emoji">{{item.emoji}}</text>
-      <view class="agent-text">
+  <!-- 专家切换：只剩两位，用分段控件比滚动 chip 更像「切换」 -->
+  <view class="agent-bar">
+    <view class="segment">
+      <view class="segment-item {{currentAgent === item.key ? 'active' : ''}}"
+            wx:for="{{agents}}" wx:key="key"
+            bindtap="switchAgent" data-key="{{item.key}}">
+        <text class="agent-emoji">{{item.emoji}}</text>
         <text class="agent-name">{{item.name}}</text>
-        <text class="agent-tag">{{item.tag}}</text>
       </view>
     </view>
-  </scroll-view>
+    <view class="agent-clear" bindtap="clearChat"><text class="ic ic-trash ic-sm"></text></view>
+  </view>
+  <view class="agent-sub">{{agents.length === 2 ? (currentAgent === 'coupon' ? '比价 · 优惠活动' : '记账 · 预算 · 省钱目标') : ''}}</view>
 
   <!-- 对话区 -->
   <scroll-view scroll-y class="chat-list" scroll-into-view="{{scrollToId}}" scroll-with-animation>
     <!-- 开场引导 -->
     <view class="welcome" wx:if="{{messages.length === 0}}">
       <text class="welcome-emoji">👋</text>
-      <text class="welcome-title">我是{{currentAgent === 'coupon' ? '优惠情报员' : currentAgent === 'budget' ? '理财管家' : '抠门达人'}}</text>
-      <text class="welcome-desc">可以问我怎么省、让我帮你记账，或点下面的问题试试</text>
+      <text class="welcome-title">{{currentAgent === 'coupon' ? '优惠情报员' : '理财管家'}}</text>
+      <text class="welcome-desc">{{currentAgent === 'coupon' ? '复制商品标题或整段分享文案发我，我去比京东和天猫的到手价' : '直接说消费就能记账，比如「昨晚外卖 18 块」，也能让我分析本月账单'}}</text>
       <view class="welcome-qs">
         <view class="welcome-q" wx:for="{{quickQuestions}}" wx:key="*this"
               bindtap="askQuick" data-q="{{item}}">{{item}}</view>
@@ -30,16 +31,46 @@
           id="msg-{{item.id}}"
           class="chat-item {{item.role === 'user' ? 'right' : 'left'}}">
       <view class="avatar" wx:if="{{item.role !== 'user'}}">
-        <text>{{currentAgent === 'coupon' ? '🧧' : currentAgent === 'budget' ? '📊' : '✨'}}</text>
+        <text>{{currentAgent === 'coupon' ? '🧧' : '📊'}}</text>
       </view>
       <view class="msg-col">
         <image wx:if="{{item.image}}" src="{{item.image}}" mode="aspectFill" class="msg-img" />
-        <view class="bubble {{item.role === 'user' ? 'user-bubble' : 'ai-bubble'}}">
-          <text wx:if="{{item.content}}" user-select>{{item.content}}</text>
-          <view wx:else class="thinking">
+        <!-- 表格：数字对比由后端算好，直接渲染，正文只留结论 -->
+        <view class="msg-tables" wx:if="{{item.tables && item.tables.length}}">
+          <view class="tbl {{tb.cls}}" wx:for="{{item.tables}}" wx:for-item="tb" wx:key="key">
+            <view class="tbl-title" wx:if="{{tb.title}}">{{tb.title}}</view>
+            <view class="tbl-row tbl-head">
+              <view class="tbl-cell" wx:for="{{tb.head}}" wx:for-item="hd" wx:key="*this">{{hd}}</view>
+            </view>
+            <view class="tbl-row" wx:for="{{tb.rows}}" wx:for-item="row" wx:key="index">
+              <view class="tbl-cell {{cindex > 0 ? 'right num' : ''}}"
+                    wx:for="{{row}}" wx:for-item="c" wx:for-index="cindex" wx:key="cindex">{{c}}</view>
+            </view>
+            <view class="tbl-note" wx:if="{{tb.note}}">{{tb.note}}</view>
+          </view>
+        </view>
+        <view class="bubble {{item.role === 'user' ? 'user-bubble' : 'ai-bubble'}}"
+              wx:if="{{item.content}}">
+          <text user-select>{{item.content}}</text>
+        </view>
+        <view class="bubble ai-bubble" wx:elif="{{item.role !== 'user'}}">
+          <view class="thinking">
             <view class="dot"></view><view class="dot"></view><view class="dot"></view>
             <text class="thinking-text">正在翻你的账单和攻略…</text>
           </view>
+        </view>
+        <!-- 比价购买入口卡片 -->
+        <view class="link-cards" wx:if="{{item.links && item.links.length}}">
+          <view class="link-card" wx:for="{{item.links}}" wx:for-item="lnk" wx:key="key"
+                catchtap="copyLink" data-url="{{lnk.url}}" data-label="{{lnk.label}}">
+            <view class="lc-main">
+              <text class="lc-platform">{{lnk.platform}}</text>
+              <text class="lc-label ellipsis">{{lnk.label}}</text>
+            </view>
+            <text class="lc-price num" wx:if="{{lnk.priceText}}">{{lnk.priceText}}</text>
+            <text class="lc-copy">复制</text>
+          </view>
+          <text class="lc-tip">点卡片复制链接，到浏览器或对应 App 打开</text>
         </view>
         <view class="tool-tag" wx:if="{{item.toolUsed && item.toolUsed !== 'chat' && item.toolUsed !== 'error'}}">
           <text>🔧 {{item.toolUsed}}</text>
@@ -58,10 +89,12 @@
   <view class="input-area">
     <view wx:if="{{image}}" class="img-preview">
       <image src="{{image.url}}" mode="aspectFill" class="img-preview-img"></image>
-      <view class="img-remove" catchtap="removeImage">×</view>
+      <view class="img-remove" catchtap="removeImage"><text class="ic ic-close ic-sm"></text></view>
     </view>
     <view class="input-bar">
-      <view class="img-btn {{uploading ? 'busy' : ''}}" bindtap="onChooseImage">{{uploading ? '…' : '📷'}}</view>
+      <view class="img-btn {{uploading ? 'busy' : ''}}" bindtap="onChooseImage">
+        <text class="ic ic-camera"></text>
+      </view>
       <input value="{{inputValue}}" placeholder="{{placeholder}}" placeholder-class="ph"
              confirm-type="send" bindinput="onInput" bindconfirm="sendMessage" />
       <view class="send-btn {{sending ? 'busy' : ''}}" bindtap="sendMessage">{{sending ? '思考中' : '发送'}}</view>
