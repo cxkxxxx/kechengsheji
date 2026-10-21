@@ -195,7 +195,9 @@ def analyze_bills(month: str = "", user_id: int = 0, db=None, **kwargs):
                 "properties": {
                     "amount": {"type": "number", "description": "金额（元），一律填正数；截图里显示成 -295.00 的支出就填 295"},
                     "category": {"type": "string", "enum": CATEGORIES, "description": "消费分类"},
-                    "source": {"type": "string", "description": "简短备注，例如 午餐、打车、超市日用品；读不出来就留空，别填「看不清」"},
+                    "source": {"type": "string", "description": "这笔钱用来干什么、在哪家买的，例如「晚餐·阮记老面馆」「打车·滴滴」；读不出来就留空，别填「看不清」"},
+                    "pay_channel": {"type": "string", "description": "支付平台：微信支付/支付宝/云闪付/京东支付/美团支付。截图里写了「支付方式」就照抄，没有就留空"},
+                    "order_no": {"type": "string", "description": "交易单号/商户单号，截图里有才填，没有留空，绝不能自己编"},
                     "bill_date": {"type": "string", "description": "消费日期 YYYY-MM-DD；用户说「昨天/上周」时换算成具体日期，留空按今天"},
                 },
                 # source 不列进 required：列了就必须填点什么，模型会拿「看不清」这种占位符来占位
@@ -221,6 +223,8 @@ def add_bill(bills, user_id: int = 0, db=None, **kwargs) -> str:
             amount=amount,
             category=_as_category(item.get("category")),
             source=_as_source(item.get("source")),
+            pay_channel=_as_channel(item.get("pay_channel")),
+            order_no=_as_order_no(item.get("order_no")),
             bill_date=_as_date(item.get("bill_date")) or today,
         )
         db.add(bill)
@@ -259,6 +263,46 @@ def _as_amount(v):
     # 之前这里直接判无效，导致拍照记账「一条都没记上：第 1 条金额无效（-295）」。
     f = abs(f)
     return f if 0 < f <= 10 ** 7 else None
+
+
+# 支付渠道只认这几个说法。截图里经常不写「微信支付」而写它的公司名/余额产品名
+# （实测有一张截图的支付方式是「财付通」），不归一就会原样存进库里显示出来。
+_CHANNELS = {
+    "微信支付": ("微信", "财付通", "零钱通", "零钱", "wechat", "wxpay"),
+    "支付宝": ("支付宝", "余额宝", "花呗", "alipay"),
+    "云闪付": ("云闪付", "银联"),
+    "京东支付": ("京东",),
+    "美团支付": ("美团",),
+    "Apple Pay": ("apple pay", "applepay"),
+    "银行卡": ("储蓄卡", "信用卡", "借记卡", "银行卡"),
+}
+
+
+def _as_channel(v) -> str:
+    s = str(v or "").strip().lower()
+    if not s or s in ("无", "未知", "看不清", "null", "none"):
+        return ""
+    for name, keys in _CHANNELS.items():
+        if any(k in s for k in keys):
+            return name
+    return str(v).strip()[:30]
+
+
+_ORDER_NO_BAD = ("看不清", "无", "未知", "null", "none", "-", "n/a")
+
+
+def _as_order_no(v) -> str:
+    """交易单号必须是「抄来的」而不是「编的」：只留字母数字，长度不合理的直接丢。
+
+    单号这种东西模型特别爱顺手补全成一位不差的一串数字，所以宁可留空也不要收假的。
+    """
+    s = str(v or "").strip()
+    if not s or s.lower() in _ORDER_NO_BAD:
+        return ""
+    cleaned = _re.sub(r"[^0-9A-Za-z]", "", s)
+    if len(cleaned) < 8 or len(cleaned) > 64:
+        return ""
+    return cleaned
 
 
 def _as_category(v):

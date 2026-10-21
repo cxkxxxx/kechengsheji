@@ -16,6 +16,15 @@ _PENDING_COLUMNS = [
     ("budget_plans", "spend_limit", "FLOAT DEFAULT 0"),
     # 昵称+密码登录。原来 register 把哈希算出来就扔了，库里没这列所以永远登不回去
     ("users", "password_hash", "VARCHAR(120)"),
+    # 账单明细：支付平台和交易单号。手打的账可以留空，拍照/导入的账单才有
+    ("bills", "pay_channel", "VARCHAR(30)"),
+    ("bills", "order_no", "VARCHAR(64)"),
+]
+
+# 补列后需要把存量 NULL 回填成空串的 (表, 列)
+_BACKFILL_EMPTY = [
+    ("bills", "pay_channel"),
+    ("bills", "order_no"),
 ]
 
 
@@ -35,4 +44,9 @@ def ensure_columns() -> list:
                 continue
             conn.execute(text("ALTER TABLE %s ADD COLUMN %s %s" % (table, column, ddl)))
             added.append("%s.%s" % (table, column))
+        # 补列之后存量行全是 NULL，而接口按 str 返回。回填成空串，否则每读一行都得靠
+        # schema 兜底 —— 回填前 GET /bills 直接 500，账单页整个打不开。
+        for table, column in _BACKFILL_EMPTY:
+            conn.execute(text("UPDATE %s SET %s = '' WHERE %s IS NULL"
+                              % (table, column, column)))
     return added

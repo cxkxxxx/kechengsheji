@@ -5,6 +5,9 @@ from datetime import date, datetime
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import date
+import calendar
+import random
+import re
 
 from app.core.database import get_db
 from app.core.security import get_current_user
@@ -16,17 +19,49 @@ from app.agent.llm import call_llm_simple
 
 router = APIRouter()
 
-# 演示账单按分类给贴近真实的价格区间。以前一律 uniform(8, 300)，会生成
-# 「奶茶 280 块」「地铁 9 块」这种假数据，把分类占比和 AI 的账单分析一起带跑。
-_DEMO_CATS = {
-    "餐饮": (["早餐", "午餐", "晚餐", "外卖", "奶茶", "咖啡", "食堂"], (6, 88)),
-    "购物": (["淘宝", "京东", "拼多多", "超市日用品", "衣服"], (25, 420)),
-    "交通": (["地铁", "公交", "打车", "共享单车"], (2, 46)),
-    "生活": (["水电费", "话费", "日用品", "宽带"], (15, 260)),
-    "娱乐": (["电影票", "游戏充值", "KTV", "演出"], (35, 210)),
-    "医疗": (["药品", "挂号", "体检"], (20, 320)),
-    "其他": (["礼物", "宠物", "杂项"], (20, 220)),
-}
+# 演示账单条目：(用途·商户, 分类, 金额区间, 该场景常用的支付渠道)
+# 以前只有「午餐」「外卖」这种两字词，账单页看不出钱到底花在哪，AI 分析也只能说个分类占比。
+# 带上商户和渠道之后，明细页、固定扣费识别、渠道分布才有东西可看。
+_DEMO_ITEMS = [
+    ("早餐·老面包子铺", "餐饮", (5, 14), ["微信支付"]),
+    ("午餐·公司食堂", "餐饮", (12, 26), ["微信支付", "支付宝"]),
+    ("晚餐·阮记老面馆", "餐饮", (18, 46), ["微信支付", "支付宝"]),
+    ("外卖·黄焖鸡米饭", "餐饮", (16, 34), ["微信支付", "美团支付"]),
+    ("奶茶·蜜雪冰城", "餐饮", (6, 18), ["微信支付"]),
+    ("咖啡·瑞幸", "餐饮", (9, 20), ["支付宝"]),
+    ("超市买菜·永辉超市", "购物", (28, 120), ["微信支付", "支付宝", "云闪付"]),
+    ("日用品·拼多多", "购物", (12, 89), ["微信支付"]),
+    ("衣服·淘宝", "购物", (79, 359), ["支付宝"]),
+    ("数码配件·京东", "购物", (25, 199), ["微信支付", "京东支付"]),
+    ("地铁通勤", "交通", (3, 9), ["微信支付", "支付宝"]),
+    ("打车·滴滴出行", "交通", (11, 46), ["微信支付", "支付宝"]),
+    ("共享单车月卡", "交通", (12, 18), ["微信支付"]),
+    ("公交", "交通", (1, 4), ["微信支付"]),
+    ("水电费", "生活", (88, 268), ["支付宝", "微信支付"]),
+    ("话费充值·中国移动", "生活", (30, 100), ["微信支付", "支付宝"]),
+    ("宽带月租", "生活", (58, 79), ["支付宝"]),
+    ("视频会员自动续费", "生活", (15, 25), ["微信支付", "支付宝"]),
+    ("电影票", "娱乐", (35, 68), ["淘票票", "微信支付"]),
+    ("游戏充值", "娱乐", (6, 128), ["微信支付", "支付宝"]),
+    ("KTV 聚会", "娱乐", (60, 210), ["支付宝"]),
+    ("药品·大药房", "医疗", (18, 96), ["微信支付", "支付宝"]),
+    ("门诊挂号", "医疗", (10, 45), ["支付宝", "微信支付"]),
+    ("生日礼物", "其他", (45, 220), ["微信支付", "支付宝"]),
+    ("宠物粮", "其他", (58, 168), ["京东支付"]),
+]
+
+# 交易单号：只有「从账单截图/支付通知里导进来」的那部分才有，手打的留空，
+# 这样演示时两种状态都能看到，也不会显得假。前缀按各家真实单号的样子凑。
+_ORDER_PREFIX = {"微信支付": "4200", "支付宝": "2200", "云闪付": "1300",
+                 "京东支付": "7100", "美团支付": "8300", "淘票票": "3100"}
+
+
+def _make_order_no(channel: str, d: date) -> str:
+    prefix = _ORDER_PREFIX.get(channel, "4200")
+    if channel == "支付宝":
+        return "%s%02d%02d%s%s" % (d.year, d.month, d.day, prefix,
+                                   "".join(random.choice("0123456789") for _ in range(14)))
+    return "%s%s" % (prefix, "".join(random.choice("0123456789") for _ in range(18)))
 
 
 def _month_str(y: int, m: int) -> str:
@@ -47,7 +82,6 @@ def _back_months(anchor: str, count: int) -> list:
 
 def _month_bounds(ym: str) -> tuple:
     """该月的 (第一天, 最后一天)。用 calendar 而不是写死 30/31，闰年 2 月才不会错。"""
-    import calendar
     y, m = int(ym[:4]), int(ym[5:7])
     return date(y, m, 1), date(y, m, calendar.monthrange(y, m)[1])
 
@@ -77,6 +111,8 @@ def create_bill(
         amount=bill_data.amount,
         category=bill_data.category,
         source=bill_data.source,
+        pay_channel=(bill_data.pay_channel or "")[:30],
+        order_no=(bill_data.order_no or "")[:64],
         bill_date=bill_data.bill_date,
     )
     db.add(bill)
@@ -167,10 +203,6 @@ def seed_demo(
     只删掉将要写入的那几个月。原来这里无条件 delete 当前用户全部账单，
     用户自己记的账会被这个「导入演示」按钮一键抹掉。
     """
-    import random
-    import re
-    import calendar
-
     anchor = (month or "").strip()
     if not re.match(r"^\d{4}-(0[1-9]|1[0-2])$", anchor):
         anchor = date.today().strftime("%Y-%m")
@@ -196,13 +228,26 @@ def seed_demo(
         hi_day = min(last.day, today.day) if (start.year, start.month) == (today.year, today.month) else last.day
         if hi_day < 1:
             continue
+        # 固定扣费类每月只该出现一次，先单独铺一遍，让 detect_fixed_spend 真能认出东西来
+        for label, cat, (lo, hi), chans in _DEMO_ITEMS:
+            if "续费" not in label and "月租" not in label and "月卡" not in label:
+                continue
+            d = date(start.year, start.month, random.randint(1, hi_day))
+            ch = random.choice(chans)
+            db.add(Bill(user_id=current_user.id, amount=round(random.uniform(lo, hi), 2),
+                        category=cat, source=label, pay_channel=ch,
+                        order_no=_make_order_no(ch, d), bill_date=d))
+            cnt += 1
         for _ in range(random.randint(26, 34)):
-            cat = random.choice(list(_DEMO_CATS))
-            names, (lo, hi) = _DEMO_CATS[cat]
-            db.add(Bill(user_id=current_user.id,
-                        amount=round(random.uniform(lo, hi), 1),
-                        category=cat, source=random.choice(names),
-                        bill_date=date(start.year, start.month, random.randint(1, hi_day))))
+            label, cat, (lo, hi), chans = random.choice(_DEMO_ITEMS)
+            d = date(start.year, start.month, random.randint(1, hi_day))
+            ch = random.choice(chans)
+            # 约六成带交易单号（当作是从支付通知/截图导进来的），其余留空模拟手打
+            has_no = random.random() < 0.6
+            db.add(Bill(user_id=current_user.id, amount=round(random.uniform(lo, hi), 2),
+                        category=cat, source=label, pay_channel=ch,
+                        order_no=_make_order_no(ch, d) if has_no else "",
+                        bill_date=d))
             cnt += 1
     db.commit()
     return success({"imported": cnt, "cleared": deleted, "months": targets,

@@ -6,6 +6,7 @@ Mock 数据种子脚本
 """
 import random
 import datetime
+import calendar
 from app.core.database import SessionLocal
 from app.models.article import Article
 from app.models.post import Post
@@ -246,10 +247,9 @@ def seed():
         # 7. 测试用户账单：锚定「本月」往前 4 个月，环比和趋势才有数据可比。
         #    以前写死 datetime.date(2026, 9, day)，时间一走到 10 月，
         #    账单页默认视图和「分析我这个月账单」就全是空的。
+        #    条目直接复用账单接口里那份 _DEMO_ITEMS，两处各写一套迟早会对不上。
         if db.query(Bill).count() == 0:
-            import calendar
-            cats = ["餐饮", "购物", "交通", "生活", "娱乐", "医疗", "其他"]
-            sources = ["午餐", "外卖", "地铁", "超市买菜", "淘宝", "电影票", "打车", "水电费", "奶茶", "日用品"]
+            from app.api.routes.bills import _DEMO_ITEMS, _make_order_no
             today = datetime.date.today()
             months = []
             y, mo = today.year, today.month
@@ -269,10 +269,14 @@ def seed():
                     if last < 1:
                         continue
                     for _ in range(random.randint(8, 12)):
+                        label, cat, (lo, hi), chans = random.choice(_DEMO_ITEMS)
+                        d = datetime.date(yy, mm, random.randint(1, last))
+                        ch = random.choice(chans)
                         db.add(Bill(
-                            user_id=u.id, amount=round(random.uniform(5, 200), 1),
-                            category=random.choice(cats), source=random.choice(sources),
-                            bill_date=datetime.date(yy, mm, random.randint(1, last)),
+                            user_id=u.id, amount=round(random.uniform(lo, hi), 2),
+                            category=cat, source=label, pay_channel=ch,
+                            order_no=_make_order_no(ch, d) if random.random() < 0.6 else "",
+                            bill_date=d,
                         ))
                         n += 1
             db.commit()

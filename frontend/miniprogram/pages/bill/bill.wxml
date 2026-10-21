@@ -182,7 +182,7 @@
       <view class="list-icon"><view class="dot" style="background: {{item.color}}"></view></view>
       <view class="flex-1 bill-text">
         <text class="bill-name ellipsis">{{item.source || item.category || '未分类'}}</text>
-        <text class="desc">{{item.category}} · {{item.bill_date}}</text>
+        <text class="desc">{{item.category}} · {{item.bill_date}}{{item.pay_channel ? ' · ' + item.pay_channel : ''}}</text>
       </view>
       <text class="bill-amount num">-{{item.amount}}</text>
       <view class="ic ic-sm ic-arrow"></view>
@@ -219,7 +219,18 @@
     </view>
     <view class="form-item">
       <text class="label">备注</text>
-      <input class="input" placeholder="如：午餐、淘宝订单" placeholder-class="ph" value="{{form.source}}" bindinput="onInput" data-field="source" />
+      <input class="input" placeholder="用来干什么、在哪家买的，如：晚餐·阮记老面馆" placeholder-class="ph" value="{{form.source}}" bindinput="onInput" data-field="source" />
+    </view>
+    <view class="form-item">
+      <text class="label">支付平台</text>
+      <view class="tags">
+        <view class="tag {{form.pay_channel === item ? 'active' : ''}}" wx:for="{{payChannels}}" wx:key="*this"
+              bindtap="selectChannel" data-ch="{{item}}">{{item}}</view>
+      </view>
+    </view>
+    <view class="form-item">
+      <text class="label">交易单号</text>
+      <input class="input" placeholder="选填，支付截图里的那串单号" placeholder-class="ph" value="{{form.order_no}}" bindinput="onInput" data-field="order_no" />
     </view>
     <view class="form-item">
       <text class="label">日期</text>

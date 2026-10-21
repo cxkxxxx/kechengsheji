@@ -41,7 +41,8 @@ Page({
     showGoalDialog: false,
     goalForm: { spend_limit: '', target_amount: '' },
     categories: ['餐饮', '购物', '交通', '生活', '娱乐', '医疗', '其他'],
-    form: { amount: '', category: '餐饮', source: '', bill_date: '' }
+    payChannels: ['微信支付', '支付宝', '云闪付', '京东支付', '美团支付'],
+    form: { amount: '', category: '餐饮', source: '', pay_channel: '', order_no: '', bill_date: '' }
   },
 
   onLoad() {
@@ -268,7 +269,8 @@ Page({
   openAddDialog() {
     this.setData({
       showDialog: true, dialogMode: 'add', editingId: 0,
-      form: { amount: '', category: '餐饮', source: '', bill_date: formatDate(new Date()) }
+      form: { amount: '', category: '餐饮', source: '', pay_channel: '', order_no: '',
+              bill_date: formatDate(new Date()) }
     })
   },
 
@@ -278,7 +280,8 @@ Page({
     if (!b) return
     this.setData({
       showDialog: true, dialogMode: 'edit', editingId: id,
-      form: { amount: String(b.amount), category: b.category || '其他', source: b.source || '', bill_date: b.bill_date }
+      form: { amount: String(b.amount), category: b.category || '其他', source: b.source || '',
+              pay_channel: b.pay_channel || '', order_no: b.order_no || '', bill_date: b.bill_date }
     })
   },
 
@@ -288,10 +291,16 @@ Page({
 
   selectCategory(e) { this.setData({ 'form.category': e.currentTarget.dataset.cat }) },
 
+  // 再点一次已选中的渠道就取消（手打的账本来就没有平台）
+  selectChannel(e) {
+    const ch = e.currentTarget.dataset.ch
+    this.setData({ 'form.pay_channel': this.data.form.pay_channel === ch ? '' : ch })
+  },
+
   onDateChange(e) { this.setData({ 'form.bill_date': e.detail.value }) },
 
   async submitBill() {
-    const { amount, category, source, bill_date } = this.data.form
+    const { amount, category, source, pay_channel, order_no, bill_date } = this.data.form
     const value = parseFloat(amount)
     if (!(value > 0)) {
       wx.showToast({ title: '请输入大于 0 的金额', icon: 'none' })
@@ -301,7 +310,10 @@ Page({
       wx.showToast({ title: '请选择日期', icon: 'none' })
       return
     }
-    const payload = { amount: Math.round(value * 100) / 100, category, source, bill_date }
+    const payload = {
+      amount: Math.round(value * 100) / 100, category, source, bill_date,
+      pay_channel: pay_channel || '', order_no: order_no || ''
+    }
     try {
       if (this.data.dialogMode === 'edit') {
         await request('/bills/' + this.data.editingId, 'PUT', payload)
