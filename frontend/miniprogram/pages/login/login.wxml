@@ -5,7 +5,7 @@
 
   <view class="brand">
     <view class="logo-badge">省</view>
-    <text class="logo">省活攻略</text>
+    <text class="logo">省钱攻略</text>
     <text class="slogan">用最少的钱，过最好的生活</text>
   </view>
 

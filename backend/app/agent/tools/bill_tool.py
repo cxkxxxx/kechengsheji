@@ -193,7 +193,7 @@ def analyze_bills(month: str = "", user_id: int = 0, db=None, **kwargs):
             "items": {
                 "type": "object",
                 "properties": {
-                    "amount": {"type": "number", "description": "金额（元），正数"},
+                    "amount": {"type": "number", "description": "金额（元），一律填正数；截图里显示成 -295.00 的支出就填 295"},
                     "category": {"type": "string", "enum": CATEGORIES, "description": "消费分类"},
                     "source": {"type": "string", "description": "简短备注，例如 午餐、打车、超市日用品；读不出来就留空，别填「看不清」"},
                     "bill_date": {"type": "string", "description": "消费日期 YYYY-MM-DD；用户说「昨天/上周」时换算成具体日期，留空按今天"},
@@ -251,9 +251,13 @@ def _as_source(v):
 
 def _as_amount(v):
     try:
-        f = round(float(str(v).replace("元", "").replace("¥", "").strip()), 2)
+        f = round(float(str(v).replace("元", "").replace("¥", "").replace(",", "").strip()), 2)
     except (TypeError, ValueError):
         return None
+    # 微信/支付宝的账单截图里，支出本身就带负号（显示成 -295.00）。模型照抄负号是忠实读数，
+    # 不是它算错。bills 表只存支出，所以负号一律当「支出了这么多」，取绝对值。
+    # 之前这里直接判无效，导致拍照记账「一条都没记上：第 1 条金额无效（-295）」。
+    f = abs(f)
     return f if 0 < f <= 10 ** 7 else None
 
 

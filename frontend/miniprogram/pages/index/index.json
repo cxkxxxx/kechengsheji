@@ -1,5 +1,7 @@
 {
   "navigationBarTitleText": "省钱攻略",
+  "navigationBarBackgroundColor": "#FFFFFF",
+  "navigationBarTextStyle": "black",
   "enablePullDownRefresh": true,
   "backgroundTextStyle": "dark"
 }

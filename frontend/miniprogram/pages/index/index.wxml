@@ -1,99 +1,82 @@
-<!-- 首页：省钱攻略列表（首条大图 + 紧凑列表 + 投稿入口） -->
 <view class="container">
-  <view class="hero">
-    <view class="hero-head">
-      <view>
-        <text class="hero-title">省钱攻略</text>
-        <text class="hero-sub">能省一块是一块</text>
-      </view>
-      <view class="hero-acts">
-        <view class="hero-act" bindtap="goAsk"><text class="ic ic-spark ic-sm ic-light"></text></view>
-        <view class="hero-act" bindtap="goCreate"><text class="ic ic-plus ic-sm ic-light"></text></view>
-      </view>
+  <view class="page-head">
+    <view class="head-copy">
+      <text class="page-title">省钱攻略</text>
+      <text class="page-subtitle">把每一笔日常消费，变成可执行的省钱方案</text>
     </view>
-    <view class="search-bar">
-      <text class="ic ic-search ic-sm ic-light"></text>
-      <input placeholder-class="search-ph" placeholder="搜索攻略标题" value="{{keyword}}"
-             bindinput="onSearch" confirm-type="search" />
-      <view class="search-clear" wx:if="{{keyword}}" catchtap="clearSearch">
-        <text class="ic ic-close ic-sm ic-light"></text>
-      </view>
+    <view class="head-action" bindtap="goCreate" aria-label="发布攻略">
+      <text class="ic ic-plus ic-sm"></text>
     </view>
-    <scroll-view scroll-x class="tabs" enhanced show-scrollbar="{{false}}">
-      <view wx:for="{{categories}}" wx:key="*this"
-            class="tab {{currentCategory === item ? 'active' : ''}}"
-            bindtap="switchCategory" data-cat="{{item}}">{{item}}</view>
-    </scroll-view>
   </view>
+
+  <view class="search-bar">
+    <text class="ic ic-search ic-sm"></text>
+    <input class="search-input" placeholder-class="search-ph" placeholder="搜索攻略标题或关键词"
+           value="{{keyword}}" bindinput="onSearch" confirm-type="search" />
+    <view class="search-clear" wx:if="{{keyword}}" catchtap="clearSearch">
+      <text class="ic ic-close ic-sm"></text>
+    </view>
+  </view>
+
+  <scroll-view scroll-x class="tabs" enhanced show-scrollbar="{{false}}">
+    <view wx:for="{{categories}}" wx:key="*this"
+          class="tab {{currentCategory === item ? 'active' : ''}}"
+          bindtap="switchCategory" data-cat="{{item}}">{{item}}</view>
+  </scroll-view>
 
   <scroll-view scroll-y class="refresh-list" refresher-enabled
                refresher-triggered="{{refreshing}}"
                bindrefresherrefresh="onRefresherRefresh">
+    <view class="section-bar">
+      <text class="section-title">精选攻略</text>
+      <text class="section-count" wx:if="{{!loading}}">{{filtered.length}} 条内容</text>
+    </view>
+
     <block wx:if="{{loading}}">
-      <view class="card sk-card" wx:for="{{[1,2,3]}}" wx:key="*this">
-        <view class="skeleton sk-thumb"></view>
-        <view class="sk-lines">
-          <view class="skeleton" style="height: 30rpx; width: 70%;"></view>
-          <view class="skeleton" style="height: 24rpx; width: 92%; margin-top: 14rpx;"></view>
-          <view class="skeleton" style="height: 24rpx; width: 45%; margin-top: 14rpx;"></view>
+      <view class="article-card skeleton-card" wx:for="{{[1,2,3]}}" wx:key="*this">
+        <view class="skeleton skeleton-thumb"></view>
+        <view class="skeleton-copy">
+          <view class="skeleton skeleton-title"></view>
+          <view class="skeleton skeleton-line"></view>
+          <view class="skeleton skeleton-line short"></view>
         </view>
       </view>
     </block>
 
     <block wx:elif="{{filtered.length}}">
-      <view class="feature" bindtap="goDetail" data-id="{{filtered[0].id}}">
-        <image wx:if="{{filtered[0].coverUrl}}" class="feature-cover" src="{{filtered[0].coverUrl}}" mode="aspectFill" />
-        <view wx:else class="feature-cover feature-fallback"><text>{{filtered[0].category}}</text></view>
-        <view class="feature-body">
-          <view class="chip">{{filtered[0].category}}</view>
-          <text class="feature-title ellipsis-2">{{filtered[0].title}}</text>
-          <text class="desc ellipsis-2">{{filtered[0].content}}</text>
-          <view class="meta">
-            <view class="meta-item"><text class="ic ic-user ic-sm"></text><text>{{filtered[0].author}}</text></view>
-            <view class="meta-item">
-              <text class="ic {{filtered[0].liked ? 'ic-heart-on' : 'ic-heart'}} ic-sm"></text>
-              <text class="num">{{filtered[0].likes}}</text>
-              <text class="ic ic-eye ic-sm" style="margin-left:16rpx"></text>
-              <text class="num">{{filtered[0].views}}</text>
-            </view>
+      <view class="article-card card-tap" wx:for="{{filtered}}" wx:key="id"
+            bindtap="goDetail" data-id="{{item.id}}">
+        <view class="thumb-wrap">
+          <image wx:if="{{item.coverUrl}}" class="article-thumb" src="{{item.coverUrl}}" mode="aspectFill" />
+          <view wx:else class="article-thumb thumb-fallback thumb-{{index % 4}}">
+            <text class="thumb-mark">省</text>
+            <text class="thumb-caption">{{item.category}}</text>
           </view>
         </view>
-      </view>
-
-      <view class="article-list">
-        <view class="card art-row card-tap" wx:for="{{filtered}}" wx:key="id" wx:if="{{index > 0}}"
-              bindtap="goDetail" data-id="{{item.id}}">
-          <image wx:if="{{item.coverUrl}}" class="art-thumb" src="{{item.coverUrl}}" mode="aspectFill" />
-          <view wx:else class="art-thumb art-fallback"><text>{{item.category}}</text></view>
-          <view class="art-info">
-            <text class="art-title ellipsis-2">{{item.title}}</text>
-            <view class="art-meta">
+        <view class="article-info">
+          <text class="article-title ellipsis-2">{{item.title}}</text>
+          <text class="article-summary ellipsis-2">{{item.content}}</text>
+          <view class="article-bottom">
+            <view class="article-author">
+              <text class="ic ic-user ic-xs"></text>
+              <text class="author-name ellipsis">{{item.author || '省钱达人'}}</text>
               <text class="chip chip-sm">{{item.category}}</text>
-              <view class="meta-item">
-                <text class="ic ic-heart ic-sm"></text><text class="num">{{item.likes}}</text>
-                <text class="ic ic-eye ic-sm" style="margin-left:12rpx"></text><text class="num">{{item.views}}</text>
-              </view>
+            </view>
+            <view class="article-stats">
+              <view class="stat"><text class="ic {{item.liked ? 'ic-heart-on' : 'ic-heart'}} ic-xs"></text><text>{{item.likes || 0}}</text></view>
+              <view class="stat"><text class="ic ic-eye ic-xs"></text><text>{{item.views || 0}}</text></view>
             </view>
           </view>
         </view>
       </view>
-
-      <view class="submit-hint" bindtap="goCreate">
-        <text class="ic ic-doc"></text>
-        <view class="flex-1">
-          <text class="submit-hint-t">你有省钱路子？写成攻略</text>
-          <text class="submit-hint-d">带张图，通过审核后会上首页</text>
-        </view>
-        <text class="ic ic-arrow arrow"></text>
-      </view>
-      <view class="list-tip">下拉看看还没刷到的攻略</view>
+      <view class="list-tip">下拉刷新，查看更多攻略</view>
     </block>
 
     <view wx:else class="empty">
-      <text class="ic ic-search empty-ic"></text>
-      <text class="empty-text">没有匹配的攻略</text>
-      <text class="desc empty-tip">换个分类或关键词试试</text>
-      <view class="btn-primary empty-btn" bindtap="goCreate">投一篇</view>
+      <view class="empty-symbol"><text class="ic ic-search"></text></view>
+      <text class="empty-text">暂时没有匹配的攻略</text>
+      <text class="empty-tip">换个分类或关键词试试看</text>
+      <view class="empty-btn" bindtap="clearSearch">清除筛选</view>
     </view>
     <view class="list-padding"></view>
   </scroll-view>

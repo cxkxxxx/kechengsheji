@@ -124,3 +124,76 @@ def test_relative_urls_become_clickable(monkeypatch):
                                 "shop": "店", "buy_url": "s.click.taobao.com/xyz"}])
     items, _ = bp.search("小米15 手机")
     assert items[0]["url"].startswith("https://")
+
+
+# ---- 双平台并行（借鉴 LangGraph 的 fan-out/fan-in，只在同一关键词内并发）----
+
+def test_two_platforms_are_queried_concurrently(monkeypatch):
+    """串行时两个平台的耗时相加；并行后应接近取最大值。
+
+    这条是防回退的：改回 `for platform in (...)` 串行写法就会超时。
+    """
+    import time
+    gap = 0.35
+
+    def slow(_kw):
+        time.sleep(gap)
+        return [{"name": "小米15手机", "price": 3899, "final_price": 2860.0,
+                 "shop": "店", "buy_url": "https://x/1"}]
+
+    monkeypatch.setattr(best_price_mcp, "_search_jd", slow)
+    monkeypatch.setattr(best_price_mcp, "_search_taobao", slow)
+    t0 = time.time()
+    items, _ = bp.search("小米15 手机")
+    elapsed = time.time() - t0
+    assert items, "并行改造不该把结果弄丢"
+    assert elapsed < gap * 2 * 0.8, "耗时 %.2fs 说明两个平台仍在排队串行" % elapsed
+
+
+def test_slow_jd_does_not_swallow_taobao_results(monkeypatch):
+    """一边慢一边快时，快的那边结果必须还在（并发最容易丢的就是这个）。"""
+    import time
+
+    def slow_jd(_kw):
+        time.sleep(0.2)
+        return [{"name": "小米15手机 京东版", "price": 3999, "final_price": 3799.0,
+                 "shop": "京东自营", "buy_url": "https://item.jd.com/1.html"}]
+
+    monkeypatch.setattr(best_price_mcp, "_search_jd", slow_jd)
+    monkeypatch.setattr(best_price_mcp, "_search_taobao",
+                        lambda _kw: [{"name": "小米15手机", "price": 3899, "final_price": 2860.0,
+                                      "shop": "天猫店", "buy_url": "https://x/2"}])
+    items, _ = bp.search("小米15 手机")
+    shops = {i["shop"] for i in items}
+    assert "京东自营" in shops and "天猫店" in shops
+    assert items[0]["final_price"] <= items[-1]["final_price"]   # 仍然按到手价升序
+
+
+def test_one_platform_failing_still_returns_the_other(monkeypatch):
+    """京东整天被共享配额挡住是常态：它报错不能连累天猫出结果。"""
+    def boom(_kw):
+        raise RuntimeError("已达接口调用上限")
+
+    monkeypatch.setattr(best_price_mcp, "_search_jd", boom)
+    monkeypatch.setattr(best_price_mcp, "_search_taobao",
+                        lambda _kw: [{"name": "小米15手机", "price": 3899, "final_price": 2860.0,
+                                      "shop": "天猫店", "buy_url": "https://x/3"}])
+    items, warnings = bp.search("小米15 手机")
+    assert items and items[0]["platform"] == "天猫"
+    assert any("京东" in w and "上限" in w for w in warnings)
+
+
+def test_second_keyword_not_wasted_when_first_hits(monkeypatch):
+    """跨关键词仍然要「查到就停」，否则并行会把第三方共享配额按关键词个数翻倍花掉。"""
+    calls = []
+
+    def jd(kw):
+        calls.append(kw)
+        return [{"name": "小米15手机", "price": 3899, "final_price": 2860.0,
+                 "shop": "店", "buy_url": "https://x/4"}]
+
+    monkeypatch.setattr(best_price_mcp, "_search_jd", jd)
+    monkeypatch.setattr(best_price_mcp, "_search_taobao", lambda kw: calls.append(kw) or [])
+    items, _ = bp.search("小米15 手机 官方旗舰店 正品")
+    assert items
+    assert len(calls) == 2, "第一个候选词就出结果了，不该再打第二个词：%s" % calls

@@ -12,20 +12,20 @@
     "pages/postCreate/postCreate"
   ],
   "window": {
-    "navigationBarBackgroundColor": "#2A1FA8",
-    "navigationBarTextStyle": "white",
-    "navigationBarTitleText": "省活攻略",
+    "navigationBarBackgroundColor": "#FFFFFF",
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "省钱攻略",
     "backgroundColor": "#F6F7FB"
   },
   "tabBar": {
-    "color": "#8A90A6",
-    "selectedColor": "#4433E0",
+    "color": "#8A94A3",
+    "selectedColor": "#263B55",
     "list": [
-      { "pagePath": "pages/index/index", "text": "攻略", "iconPath": "images/tabbar/index.png", "selectedIconPath": "images/tabbar/index_active.png" },
-      { "pagePath": "pages/community/community", "text": "社区", "iconPath": "images/tabbar/community.png", "selectedIconPath": "images/tabbar/community_active.png" },
-      { "pagePath": "pages/assistant/assistant", "text": "AI助手", "iconPath": "images/tabbar/assistant.png", "selectedIconPath": "images/tabbar/assistant_active.png" },
-      { "pagePath": "pages/bill/bill", "text": "账单", "iconPath": "images/tabbar/bill.png", "selectedIconPath": "images/tabbar/bill_active.png" },
-      { "pagePath": "pages/mine/mine", "text": "我的", "iconPath": "images/tabbar/mine.png", "selectedIconPath": "images/tabbar/mine_active.png" }
+      { "pagePath": "pages/index/index", "text": "攻略", "iconPath": "images/tabbar/index.png", "selectedIconPath": "images/tabbar/index_active_navy.png" },
+      { "pagePath": "pages/community/community", "text": "社区", "iconPath": "images/tabbar/community.png", "selectedIconPath": "images/tabbar/community_active_navy.png" },
+      { "pagePath": "pages/assistant/assistant", "text": "AI助手", "iconPath": "images/tabbar/assistant.png", "selectedIconPath": "images/tabbar/assistant_active_navy.png" },
+      { "pagePath": "pages/bill/bill", "text": "账单", "iconPath": "images/tabbar/bill.png", "selectedIconPath": "images/tabbar/bill_active_navy.png" },
+      { "pagePath": "pages/mine/mine", "text": "我的", "iconPath": "images/tabbar/mine.png", "selectedIconPath": "images/tabbar/mine_active_navy.png" }
     ]
   },
   "style": "v2"

@@ -4,9 +4,9 @@ const { currentMonth, formatDate, formatMoney } = require('../../utils/util')
 
 // 分类配色：图例、进度条、饼图共用一份，避免 WXML 里再写一长串三元表达式
 const CAT_COLORS = {
-  '餐饮': '#FF6B6B', '购物': '#4ECDC4', '交通': '#45B7D1',
-  '生活': '#96CEB4', '娱乐': '#FFD93D', '医疗': '#C8A2C8',
-  '其他': '#B0A8A8'
+  '餐饮': '#60768C', '购物': '#8797A7', '交通': '#A6B1BC',
+  '生活': '#73897F', '娱乐': '#9B8974', '医疗': '#778A9A',
+  '其他': '#C2C9D0'
 }
 const PREVIEW_COUNT = 8   // 列表默认只展示最近几笔，其余点开
 
@@ -245,11 +245,11 @@ Page({
     ctx.arc(cx, cy, r * 0.6, 0, Math.PI * 2)
     ctx.setFillStyle('#FFFFFF')
     ctx.fill()
-    ctx.setFillStyle('#8A90A6')
+    ctx.setFillStyle('#7A8593')
     ctx.setFontSize(20)
     ctx.setTextAlign('center')
     ctx.fillText('本月支出', cx, cy - 12)
-    ctx.setFillStyle('#1E2233')
+    ctx.setFillStyle('#1C2735')
     ctx.setFontSize(30)
     ctx.fillText(formatMoney(total) + ' 元', cx, cy + 26)
     ctx.draw()
@@ -340,22 +340,35 @@ Page({
     })
   },
 
-  // 导入演示账单
+  // 导入演示账单：可以只灌当前正在看的这个月，也可以一次补齐近 4 个月。
+  // 后端只会清掉它要写入的那几个月，其它月份用户自己记的账不受影响。
   seedDemo() {
     const that = this
-    wx.showModal({
-      title: '导入演示账单',
-      content: '将用演示数据覆盖当前账号的全部账单，确认导入？',
-      success(res) { if (res.confirm) that._doSeed() }
+    const cur = this.data.month || currentMonth()
+    wx.showActionSheet({
+      itemList: [
+        '只导入 ' + cur + '（当前查看的月份）',
+        '补齐近 4 个月（含本月，环比才有数据可比）'
+      ],
+      success(res) {
+        if (res.tapIndex === 0) that._doSeed(cur, 1)
+        else that._doSeed(currentMonth(), 4)
+      }
     })
   },
 
-  async _doSeed() {
+  async _doSeed(month, months) {
     this.setData({ seeding: true })
     try {
-      await request('/bills/seed-demo', 'POST')
-      wx.showToast({ title: '导入成功', icon: 'success' })
-      this.setData({ month: currentMonth(), monthLabel: '本月 · ' + currentMonth(), isCurrentMonth: true })
+      const r = await request('/bills/seed-demo?month=' + month + '&months=' + (months || 1), 'POST')
+      wx.showToast({ title: (r && r.imported ? r.imported + ' 条' : '已导入'), icon: 'success' })
+      // 停在用户当前看的那个月，不要每次导入都跳回本月
+      const keep = month || currentMonth()
+      this.setData({
+        month: keep,
+        monthLabel: this._label(keep),
+        isCurrentMonth: keep === currentMonth()
+      })
       this.loadData(true)
     } catch (e) {
       wx.showToast({ title: '导入失败', icon: 'none' })

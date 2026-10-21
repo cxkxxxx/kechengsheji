@@ -12,13 +12,21 @@
     </view>
     <view class="agent-clear" bindtap="clearChat"><text class="ic ic-trash ic-sm"></text></view>
   </view>
-  <view class="agent-sub">{{agents.length === 2 ? (currentAgent === 'coupon' ? '比价 · 优惠活动' : '记账 · 预算 · 省钱目标') : ''}}</view>
+  <!-- 能力入口条：把「这个专家会什么」摊在首屏，点一下直接发对应问法。
+       每一项都对应后端一个真实注册的工具，不是摆样子的空按钮。 -->
+  <scroll-view class="cap-bar" scroll-x enable-flex show-scrollbar="{{false}}">
+    <view class="cap {{sending ? 'cap-dim' : ''}}" wx:for="{{caps}}" wx:key="name"
+          bindtap="askCap" data-i="{{index}}">
+      <text class="ic ic-sm {{item.ic}}"></text>
+      <text class="cap-name">{{item.name}}</text>
+    </view>
+  </scroll-view>
 
   <!-- 对话区 -->
   <scroll-view scroll-y class="chat-list" scroll-into-view="{{scrollToId}}" scroll-with-animation>
     <!-- 开场引导 -->
     <view class="welcome" wx:if="{{messages.length === 0}}">
-      <text class="welcome-emoji">👋</text>
+      <view class="welcome-symbol"><text class="ic ic-spark"></text></view>
       <text class="welcome-title">{{currentAgent === 'coupon' ? '优惠情报员' : '理财管家'}}</text>
       <text class="welcome-desc">{{currentAgent === 'coupon' ? '复制商品标题或整段分享文案发我，我去比京东和天猫的到手价' : '直接说消费就能记账，比如「昨晚外卖 18 块」，也能让我分析本月账单'}}</text>
       <view class="welcome-qs">
@@ -31,7 +39,7 @@
           id="msg-{{item.id}}"
           class="chat-item {{item.role === 'user' ? 'right' : 'left'}}">
       <view class="avatar" wx:if="{{item.role !== 'user'}}">
-        <text>{{currentAgent === 'coupon' ? '🧧' : '📊'}}</text>
+        <text class="avatar-mark">{{currentAgent === 'coupon' ? '惠' : '账'}}</text>
       </view>
       <view class="msg-col">
         <image wx:if="{{item.image}}" src="{{item.image}}" mode="aspectFill" class="msg-img" />

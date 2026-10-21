@@ -12,6 +12,7 @@
 """
 import logging
 import re
+from concurrent.futures import ThreadPoolExecutor
 
 from app.core.config import PRICE_TIMEOUT
 
@@ -210,6 +211,24 @@ def _pick(items: list, kw: str) -> tuple:
     return best, hit[1:3], note
 
 
+def _gather(ex, platforms: tuple, kw: str) -> list:
+    """同一个关键词下并发查多平台，按 platforms 的固定顺序返回，输出次序因此是确定的。
+
+    只在「同一个关键词内」并行：跨关键词仍然保持 search() 里查到就停的写法，
+    否则一次比价会把共享日配额按关键词个数翻倍花掉。
+    """
+    futures = [(p, ex.submit(_search_one, p, kw)) for p in platforms]
+    out = []
+    for p, fut in futures:
+        try:
+            rows, err = fut.result()
+        except Exception as e:                 # _search_one 内部已 try，这里只兜线程/导入类意外
+            log.exception("%s 比价线程异常", p)
+            rows, err = [], str(e)[:120]
+        out.append((p, rows, err))
+    return out
+
+
 def search(keyword: str, limit: int = 6) -> tuple:
     """按商品名比价。返回 (items, warnings)，取不到数据时 items 为空、warnings 说明原因。"""
     keyword = (keyword or "").strip()
@@ -226,23 +245,25 @@ def search(keyword: str, limit: int = 6) -> tuple:
         pass
 
     items, warnings, notes = [], [], []
-    for kw in _candidates(keyword):
-        for platform in ("jd", "taobao"):
-            rows, err = _search_one(platform, kw)
-            if err:
-                warnings.append("%s接口：%s" % (PLATFORM_NAMES[platform], err))
-                continue
-            if not rows:
-                continue
-            best, alts, note = _pick(rows, kw)
-            if note:
-                notes.append("%s：%s" % (PLATFORM_NAMES[platform], note))
-            if best:
-                items.append(_item(platform, best))
-                for a in alts:
-                    items.append(_item(platform, a))
-        if items:
-            break                        # 有结果就别再打第二个关键词，省共享配额
+    platforms = ("jd", "taobao")
+    # 串行时两个平台的超时是相加的，京东被限流卡满 8 秒时天猫也得排队；并发后取最大值
+    with ThreadPoolExecutor(max_workers=len(platforms), thread_name_prefix="price") as ex:
+        for kw in _candidates(keyword):
+            for platform, rows, err in _gather(ex, platforms, kw):
+                if err:
+                    warnings.append("%s接口：%s" % (PLATFORM_NAMES[platform], err))
+                    continue
+                if not rows:
+                    continue
+                best, alts, note = _pick(rows, kw)
+                if note:
+                    notes.append("%s：%s" % (PLATFORM_NAMES[platform], note))
+                if best:
+                    items.append(_item(platform, best))
+                    for a in alts:
+                        items.append(_item(platform, a))
+            if items:
+                break                        # 有结果就别再打第二个关键词，省共享配额
     if not items:
         cands = _candidates(keyword)
         uniq = []

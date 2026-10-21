@@ -112,4 +112,5 @@ def execute_tool(name: str, args_str, user_id: int, db, context: dict = None):
 
 
 # 自动导入所有工具文件，触发注册
-from app.agent.tools import recipe_tool, shopping_tool, bill_tool, knowledge_tool, coupon_tool, budget_tool  # noqa: E402,F401
+from app.agent.tools import (  # noqa: E402,F401
+    recipe_tool, shopping_tool, bill_tool, knowledge_tool, coupon_tool, budget_tool, insight_tool)

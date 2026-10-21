@@ -42,14 +42,14 @@
 /* —— 省钱目标 —— */
 .goal-card .title { display: block; }
 .goal-bar { height: 14rpx; border-radius: var(--r-full); background: var(--fill); overflow: hidden; margin: var(--s-3) 0 var(--s-2); }
-.goal-fill { height: 100%; border-radius: var(--r-full); background: linear-gradient(90deg, var(--brand) 0%, var(--brand-2) 100%); }
+.goal-fill { height: 100%; border-radius: var(--r-full); background: var(--brand); }
 .goal-label { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2); }
 .goal-label .desc { flex: 1; min-width: 0; }
 .goal-label .left { color: var(--ok); }
 .goal-label .over { color: var(--danger); font-weight: 600; }
 /* 支出上限条：接近用完转橙，超了转红 */
-.goal-fill.budget { background: linear-gradient(90deg, var(--ok) 0%, #3FC98E 100%); }
-.goal-fill.budget.is-over { background: linear-gradient(90deg, var(--warn) 0%, var(--danger) 100%); }
+.goal-fill.budget { background: var(--ok); }
+.goal-fill.budget.is-over { background: var(--danger); }
 /* 第二个目标块之间留口气，两块进度条贴在一起会读不出来 */
 .goal-card .goal-label:not(:first-child) { margin-top: var(--s-4); }
 
@@ -110,3 +110,26 @@
   display: flex; align-items: center; justify-content: center; gap: var(--s-1);
   color: var(--danger);
 }
+
+/* 账单页：以数据和目标为主，不使用大面积渐变 */
+page { background: #f7f8fa; }
+.container { padding-bottom: 160rpx; }
+.hero { padding: 26rpx 32rpx 28rpx; border-radius: 0 0 20rpx 20rpx; }
+.mb-bar { margin-bottom: 28rpx; }
+.mb-btn { background: rgba(255,255,255,.08); border: 1rpx solid rgba(255,255,255,.16); }
+.sum { font-size: 62rpx; font-weight: 700; }
+.hero-actions { margin-top: 26rpx; }
+.hero-btn { padding: 16rpx 0; border-radius: 10rpx; background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.18); font-size: 24rpx; }
+.goal-card, .chart-card, .advice-card { border: 1rpx solid #edf0f3; border-radius: 14rpx; box-shadow: 0 4rpx 18rpx rgba(28,39,53,.045); }
+.goal-empty { border: 1rpx solid #e3e8ed; }
+.goal-bar { height: 12rpx; border-radius: 6rpx; }
+.goal-fill, .goal-fill.budget, .goal-fill.budget.is-over { background: #536d87; }
+.chart-card { padding-top: 26rpx; }
+.legend-pct { color: #425a73; }
+.advice-refresh { border-radius: 8rpx; }
+.cat-tbl { border: 1rpx solid #edf0f3; box-shadow: 0 4rpx 18rpx rgba(28,39,53,.04); }
+.more-btn { color: #263b55; }
+.fab { width: 92rpx; height: 92rpx; background: #263b55; box-shadow: 0 8rpx 20rpx rgba(29,45,66,.18); }
+.dialog { border-radius: 16rpx; }
+.dialog .input, .dialog .picker { border-radius: 10rpx; }
+.btn-confirm { border-radius: 10rpx; }

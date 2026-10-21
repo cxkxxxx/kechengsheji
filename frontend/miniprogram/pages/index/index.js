@@ -3,10 +3,12 @@ const { request } = require('../../utils/request')
 const { fullUrl } = require('../../utils/util')
 
 const PAGE = 8 // 每屏固定显示条数
+const BASE_CATEGORIES = ['全部', '餐饮', '羊毛', '购物', '生活', '账单']
+const BILL_GUIDE_RE = /(账单|记账|预算|支出|消费|超支|花销|月光)/
 
 Page({
   data: {
-    categories: ['全部', '餐饮', '购物', '生活', '羊毛'],
+    categories: BASE_CATEGORIES,
     currentCategory: '全部',
     articles: [],
     keyword: '',
@@ -25,7 +27,8 @@ Page({
     try {
       const cats = await request('/articles/categories')
       if (Array.isArray(cats) && cats.length) {
-        this.setData({ categories: ['全部'].concat(cats) })
+        const categories = BASE_CATEGORIES.concat(cats.filter(cat => BASE_CATEGORIES.indexOf(cat) < 0))
+        this.setData({ categories })
       }
     } catch (e) { /* 拿不到就用默认清单 */ }
   },
@@ -61,12 +64,16 @@ Page({
 
   // 从全量中取下一批未看过的 8 条；全部看完则循环
   pickNext(keyword) {
+    this._viewed = this._viewed || {}
+    this._cursor = this._cursor || 0
     const all = this._all || []
-    const list = all.filter(a =>
-      !keyword ||
-      (a.title && a.title.indexOf(keyword) >= 0) ||
-      (a.category && a.category.indexOf(keyword) >= 0)
-    )
+    const category = this.data.currentCategory
+    const list = all.filter(a => {
+      const searchable = (a.title || '') + ' ' + (a.category || '') + ' ' + (a.content || '')
+      const matchesCategory = category === '全部' ||
+        (category === '账单' ? BILL_GUIDE_RE.test(searchable) : a.category === category)
+      return matchesCategory && (!keyword || searchable.indexOf(keyword) >= 0)
+    })
     // 未展示的候选
     let unseen = list.filter(a => !this._viewed[a.id])
     // 全部已看过则重置循环
@@ -92,7 +99,8 @@ Page({
 
   // 拉取文章列表（缓存到 _all）
   async fetchList(force = false) {
-    const cat = this.data.currentCategory === '全部' ? '' : this.data.currentCategory
+    const cat = this.data.currentCategory === '全部' || this.data.currentCategory === '账单'
+      ? '' : this.data.currentCategory
     const data = await request('/articles?category=' + cat, 'GET', {}, force)
     // cover 存的是 /static/ 相对路径，<image> 要绝对地址
     this._all = (data || []).map(a => Object.assign({}, a, { coverUrl: fullUrl(a.cover) }))

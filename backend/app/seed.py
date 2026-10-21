@@ -243,21 +243,40 @@ def seed():
             db.commit()
             print(f"价格历史: 写入 {len(price_hist)} 条")
 
-        # 7. 测试用户账单（每个用户 10-15 条，覆盖整个月）
+        # 7. 测试用户账单：锚定「本月」往前 4 个月，环比和趋势才有数据可比。
+        #    以前写死 datetime.date(2026, 9, day)，时间一走到 10 月，
+        #    账单页默认视图和「分析我这个月账单」就全是空的。
         if db.query(Bill).count() == 0:
+            import calendar
             cats = ["餐饮", "购物", "交通", "生活", "娱乐", "医疗", "其他"]
             sources = ["午餐", "外卖", "地铁", "超市买菜", "淘宝", "电影票", "打车", "水电费", "奶茶", "日用品"]
+            today = datetime.date.today()
+            months = []
+            y, mo = today.year, today.month
+            for _ in range(4):
+                months.append((y, mo))
+                mo -= 1
+                if mo < 1:
+                    mo = 12
+                    y -= 1
+            months.reverse()
+            n = 0
             for u in users:
-                for _ in range(random.randint(10, 15)):
-                    day = random.randint(1, 18)
-                    d = datetime.date(2026, 9, day)
-                    db.add(Bill(
-                        user_id=u.id, amount=round(random.uniform(5, 200), 1),
-                        category=random.choice(cats), source=random.choice(sources),
-                        bill_date=d,
-                    ))
+                for (yy, mm) in months:
+                    last = calendar.monthrange(yy, mm)[1]
+                    if (yy, mm) == (today.year, today.month):
+                        last = min(last, today.day)     # 别生成未来的消费
+                    if last < 1:
+                        continue
+                    for _ in range(random.randint(8, 12)):
+                        db.add(Bill(
+                            user_id=u.id, amount=round(random.uniform(5, 200), 1),
+                            category=random.choice(cats), source=random.choice(sources),
+                            bill_date=datetime.date(yy, mm, random.randint(1, last)),
+                        ))
+                        n += 1
             db.commit()
-            print(f"账单: 写入 {5 * 12} 条左右")
+            print(f"账单: 写入 {n} 条（覆盖 {months[0][0]}-{months[0][1]:02d} 起 4 个月）")
 
         print("\n✅ Mock 数据写入完成！")
     finally:

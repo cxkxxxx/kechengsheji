@@ -28,23 +28,52 @@ function toTables(items) {
 }
 
 const QUICK = {
-  coupon: ['小米15 手机哪个平台便宜？', '最近有什么优惠活动？', '茅台飞天53度现在多少钱？'],
-  budget: ['分析一下我这月账单', '我的省钱目标达成了吗？', '昨晚外卖 18 块，帮我记上']
+  coupon: ['小米15 手机哪个平台便宜？', '最近有什么优惠活动？',
+           '冰箱有土豆青椒鸡蛋，怎么做最省？', '超市几点去打折最划算？'],
+  budget: ['分析一下我这月账单', '我的省钱目标达成了吗？',
+           '昨晚外卖 18 块，帮我记上', '话费什么时候充最划算？']
 }
 const PLACEHOLDER = {
-  coupon: '复制商品标题发我，比京东和天猫的到手价…',
-  budget: '说消费让我记账，或问本月账单…'
+  coupon: '比到手价、问优惠活动，或报食材让我出省钱菜谱…',
+  budget: '说消费让我记账、问本月账单，或问怎么省…'
+}
+// 只发图不打字时替用户补的那句指令。必须按专家分开，否则「看图片」这种含糊说法
+// 会让模型照着图片复述一遍，而不是去记账/比价。
+const IMAGE_ASK = {
+  budget: '把这张支付截图/小票里的消费记入账本，逐笔列出金额、分类和日期后写入，不要只描述图片内容。',
+  coupon: '识别这张图里的商品名称、品牌和型号，复制成可搜索的商品标题发给我，然后帮我比价。'
+}
+// 能力入口条（专家切换下面那一行）。每个 chip 都对应后端一个真实注册的工具，
+// 点一下就是把对应的问法发出去——不挂只做样子的空按钮。
+// 图标一律用 app.wxss 里已有的 ic-* 类，写错类名会渲染成空白方块。
+const CAPS = {
+  coupon: [
+    { ic: 'ic-search',  name: '比价',     q: '小米15 手机哪个平台便宜？' },
+    { ic: 'ic-gift',    name: '优惠活动', q: '最近有什么优惠活动？' },
+    { ic: 'ic-doc',     name: '省钱菜谱', q: '冰箱有土豆青椒鸡蛋，怎么做最省？' },
+    { ic: 'ic-spark',   name: '省钱攻略', q: '超市几点去打折最划算？' },
+    { ic: 'ic-refresh', name: '平替建议', q: '我打车花得有点多，有什么更省的办法？' }
+  ],
+  budget: [
+    { ic: 'ic-camera',  name: '拍照记账', action: 'image' },
+    { ic: 'ic-chart',   name: '账单分析', q: '分析一下我这月账单' },
+    { ic: 'ic-wallet',  name: '月末预测', q: '照现在这个速度，这个月底会花多少？会不会超支？' },
+    { ic: 'ic-clock',   name: '固定扣费', q: '有没有我忘掉的每月固定扣费？' },
+    { ic: 'ic-copy',    name: '月度复盘', q: '帮我做个本月省钱复盘' },
+    { ic: 'ic-target',  name: '省钱目标', q: '我的省钱目标达成了吗？' }
+  ]
 }
 const DEFAULT_AGENT = 'coupon'
 
 Page({
   data: {
     agents: [
-      { key: 'coupon', name: '优惠情报员', emoji: '🧧', tag: '薅羊毛 · 比价' },
-      { key: 'budget', name: '理财管家', emoji: '📊', tag: '记账 · 预算' }
+      { key: 'coupon', name: '优惠情报员', emoji: '🧧', tag: '比价 · 优惠 · 菜谱 · 攻略 · 平替' },
+      { key: 'budget', name: '理财管家', emoji: '📊', tag: '记账 · 分析 · 预测 · 复盘' }
     ],
     currentAgent: DEFAULT_AGENT,
     placeholder: PLACEHOLDER[DEFAULT_AGENT],
+    caps: CAPS[DEFAULT_AGENT],
     messages: [],
     inputValue: '',
     image: null,        // 当前待发送的图片 { url, filename }
@@ -112,6 +141,7 @@ Page({
       currentAgent: key,
       messages: [],
       quickQuestions: QUICK[key],
+      caps: CAPS[key] || CAPS[DEFAULT_AGENT],
       placeholder: PLACEHOLDER[key]
     })
     this.sendMessage(pending.question)
@@ -125,6 +155,7 @@ Page({
       currentAgent: key,
       messages: [],
       quickQuestions: QUICK[key] || QUICK[DEFAULT_AGENT],
+      caps: CAPS[key] || CAPS[DEFAULT_AGENT],
       placeholder: PLACEHOLDER[key] || PLACEHOLDER[DEFAULT_AGENT]
     })
     this.loadHistory(key)
@@ -212,8 +243,12 @@ Page({
     this._sseBuf = ''
 
     const imageUrls = img ? [img.filename] : []
+    // 只发图不打字时，得替用户把话说清楚。以前固定发「请帮我看看这张图片」，
+    // 于是拍支付截图给理财管家，它老老实实把截图**描述**了一遍却没入账——
+    // 因为没人叫它记账。按当前专家给不同的默认指令。
+    const ask = msg || (IMAGE_ASK[this.data.currentAgent] || IMAGE_ASK.coupon)
     try {
-      await this.streamChat(msg || '请帮我看看这张图片', imageUrls)
+      await this.streamChat(ask, imageUrls)
     } catch (err) {
       const msgs = this.data.messages
       msgs[msgs.length - 1] = {
@@ -426,5 +461,23 @@ Page({
     const q = e.currentTarget.dataset.q
     this.setData({ inputValue: q })
     this.sendMessage(q)
+  },
+
+  // 能力入口条：普通项直接把问法发出去，「拍照记账」这项走图片选择
+  askCap(e) {
+    const i = e.currentTarget.dataset.i
+    const cap = (this.data.caps || [])[i]
+    if (!cap) return
+    if (cap.action === 'image') {
+      if (this.data.sending) return
+      this.onChooseImage()
+      return
+    }
+    if (this.data.sending) {
+      wx.showToast({ title: '正在回答中', icon: 'none' })
+      return
+    }
+    this.setData({ inputValue: cap.q })
+    this.sendMessage(cap.q)
   }
 })

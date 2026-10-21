@@ -56,3 +56,19 @@
   box-shadow: var(--sh-1);
 }
 .logout:active { background: var(--fill); }
+
+/* 个人页：账目信息卡片与清楚的分区 */
+page { background: #f7f8fa; }
+.container { padding-bottom: 150rpx; }
+.hero { padding: 30rpx 32rpx 28rpx; border-radius: 0 0 20rpx 20rpx; }
+.avatar { width: 96rpx; height: 96rpx; border-radius: 16rpx; border: 2rpx solid rgba(255,255,255,.25); box-shadow: none; }
+.user-text { margin-left: 22rpx; }
+.stat-row { margin-top: 28rpx; gap: 12rpx; }
+.stat { min-height: 116rpx; border-radius: 10rpx; background: rgba(255,255,255,.08); }
+.stat-num { font-size: 36rpx; }
+.stat-label { font-size: 21rpx; }
+.section { margin: 28rpx 28rpx 12rpx; }
+.card { border-radius: 12rpx; }
+.list-row { padding: 22rpx 24rpx; }
+.list-icon { width: 58rpx; height: 58rpx; border-radius: 12rpx; background: #edf2f6; }
+.logout { border-radius: 12rpx; box-shadow: none; }

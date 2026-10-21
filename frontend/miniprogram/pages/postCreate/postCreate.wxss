@@ -13,3 +13,12 @@
 .pc-foot { padding: var(--s-4) var(--gap) 60rpx; }
 .pc-foot button { width: 100%; border: none; }
 .pc-foot button::after { border: none; }
+
+page { background: #f7f8fa; }
+.pc-head { padding: 20rpx 28rpx; border-bottom: 1rpx solid #e8ecf0; }
+.pc-head-title { color: #1c2735; font-size: 30rpx; }
+.container > .card { margin: 18rpx 24rpx; padding: 24rpx; border: 1rpx solid #edf0f3; border-radius: 12rpx; box-shadow: 0 4rpx 18rpx rgba(28,39,53,.04); }
+.pc-title { font-size: 31rpx; }
+.pc-content { min-height: 280rpx; font-size: 27rpx; }
+.pc-foot button { border-radius: 10rpx; box-shadow: none; }
+.up-add { border-radius: 10rpx; }

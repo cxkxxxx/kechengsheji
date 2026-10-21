@@ -16,6 +16,41 @@ from app.agent.llm import call_llm_simple
 
 router = APIRouter()
 
+# 演示账单按分类给贴近真实的价格区间。以前一律 uniform(8, 300)，会生成
+# 「奶茶 280 块」「地铁 9 块」这种假数据，把分类占比和 AI 的账单分析一起带跑。
+_DEMO_CATS = {
+    "餐饮": (["早餐", "午餐", "晚餐", "外卖", "奶茶", "咖啡", "食堂"], (6, 88)),
+    "购物": (["淘宝", "京东", "拼多多", "超市日用品", "衣服"], (25, 420)),
+    "交通": (["地铁", "公交", "打车", "共享单车"], (2, 46)),
+    "生活": (["水电费", "话费", "日用品", "宽带"], (15, 260)),
+    "娱乐": (["电影票", "游戏充值", "KTV", "演出"], (35, 210)),
+    "医疗": (["药品", "挂号", "体检"], (20, 320)),
+    "其他": (["礼物", "宠物", "杂项"], (20, 220)),
+}
+
+
+def _month_str(y: int, m: int) -> str:
+    return "%04d-%02d" % (y, m)
+
+
+def _back_months(anchor: str, count: int) -> list:
+    """从 anchor(YYYY-MM) 往前取 count 个月，返回升序的 YYYY-MM 列表。"""
+    y, m = int(anchor[:4]), int(anchor[5:7])
+    out = []
+    for _ in range(max(1, min(int(count), 24))):
+        out.append(_month_str(y, m))
+        m -= 1
+        if m < 1:
+            m, y = 12, y - 1
+    return out[::-1]
+
+
+def _month_bounds(ym: str) -> tuple:
+    """该月的 (第一天, 最后一天)。用 calendar 而不是写死 30/31，闰年 2 月才不会错。"""
+    import calendar
+    y, m = int(ym[:4]), int(ym[5:7])
+    return date(y, m, 1), date(y, m, calendar.monthrange(y, m)[1])
+
 @router.get("")
 def get_bills(
     month: str = "",
@@ -118,35 +153,60 @@ def get_summary(
 
 @router.post("/seed-demo")
 def seed_demo(
+    month: str = "",
+    months: int = 4,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    # 给当前用户导入演示账单数据（7/8/9 三个月），用于展示
+    """按月份导入演示账单。
+
+    month  锚定月 YYYY-MM，默认**本月**。默认锚在本月是有原因的：以前写死 7/8/9 三个月，
+           等时间走到 10 月，账单页默认视图和「分析一下我这月账单」全是空的。
+    months 从锚定月往前一共灌几个月，默认 4，保证环比和趋势都有数据可比。
+
+    只删掉将要写入的那几个月。原来这里无条件 delete 当前用户全部账单，
+    用户自己记的账会被这个「导入演示」按钮一键抹掉。
+    """
     import random
-    from datetime import date as _date
-    cats = ["餐饮", "购物", "交通", "生活", "娱乐", "医疗", "其他"]
-    sources = {
-        "餐饮": ["早餐", "午餐", "晚餐", "奶茶", "外卖", "火锅"],
-        "购物": ["淘宝", "京东", "拼多多", "超市日用品"],
-        "交通": ["地铁", "公交", "打车", "共享单车"],
-        "生活": ["水电费", "话费", "房租分摊", "日用品"],
-        "娱乐": ["电影票", "游戏充值", "KTV", "演唱会"],
-        "医疗": ["药品", "挂号", "体检"],
-        "其他": ["礼物", "宠物", "杂项"],
-    }
-    # 先清掉当前用户已有账单，避免重复
-    db.query(Bill).filter(Bill.user_id == current_user.id).delete()
+    import re
+    import calendar
+
+    anchor = (month or "").strip()
+    if not re.match(r"^\d{4}-(0[1-9]|1[0-2])$", anchor):
+        anchor = date.today().strftime("%Y-%m")
+    try:
+        count = int(months)
+    except (TypeError, ValueError):
+        count = 4
+
+    targets = _back_months(anchor, count)
+    today = date.today()
+
+    deleted = 0
+    for ym in targets:
+        start, last = _month_bounds(ym)
+        deleted += db.query(Bill).filter(Bill.user_id == current_user.id,
+                                         Bill.bill_date >= start,
+                                         Bill.bill_date <= last).delete(synchronize_session=False)
+
     cnt = 0
-    for m, maxday in [(7, 31), (8, 31), (9, 18)]:
-        for _ in range(30):
-            cat = random.choice(cats)
-            day = random.randint(1, maxday)
-            db.add(Bill(user_id=current_user.id, amount=round(random.uniform(8, 300), 1),
-                        category=cat, source=random.choice(sources[cat]),
-                        bill_date=_date(2026, m, day)))
+    for ym in targets:
+        start, last = _month_bounds(ym)
+        # 本月不能灌到还没发生的日期，否则账单里出现「未来的消费」，环比和打卡都会怪
+        hi_day = min(last.day, today.day) if (start.year, start.month) == (today.year, today.month) else last.day
+        if hi_day < 1:
+            continue
+        for _ in range(random.randint(26, 34)):
+            cat = random.choice(list(_DEMO_CATS))
+            names, (lo, hi) = _DEMO_CATS[cat]
+            db.add(Bill(user_id=current_user.id,
+                        amount=round(random.uniform(lo, hi), 1),
+                        category=cat, source=random.choice(names),
+                        bill_date=date(start.year, start.month, random.randint(1, hi_day))))
             cnt += 1
     db.commit()
-    return success({"imported": cnt, "tip": "已导入 " + str(cnt) + " 条演示账单"})
+    return success({"imported": cnt, "cleared": deleted, "months": targets,
+                    "tip": "已导入 %s 共 %d 条演示账单" % ("、".join(targets), cnt)})
 
 
 @router.get("/analysis")

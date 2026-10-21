@@ -54,7 +54,17 @@
   flex: none; display: flex; align-items: center; gap: 4rpx;
   padding: 18rpx 32rpx; border-radius: var(--r-full);
   font-size: 28rpx; font-weight: 600; color: #fff;
-  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-2) 100%);
+  background: var(--brand);
   box-shadow: var(--sh-brand);
 }
 .bar-send:active { opacity: .92; }
+
+page { background: #f7f8fa; }
+.container { padding: 0 24rpx 210rpx; }
+.cover { height: 360rpx; margin-top: 18rpx; border-radius: 14rpx; box-shadow: none; }
+.art-card { margin-top: 16rpx; border: 1rpx solid #edf0f3; border-radius: 14rpx; box-shadow: 0 4rpx 18rpx rgba(28,39,53,.045); }
+.art-title { font-size: 36rpx; margin: 14rpx 0 20rpx; }
+.content { font-size: 28rpx; line-height: 1.8; }
+.acts { gap: 14rpx; }
+.act { border-radius: 10rpx; box-shadow: none; }
+.bar-send { border-radius: 10rpx; background: #263b55; box-shadow: none; }

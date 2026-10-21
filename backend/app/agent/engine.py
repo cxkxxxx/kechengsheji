@@ -10,6 +10,10 @@ from app.core.config import UPLOAD_DIR
 
 log = logging.getLogger("agent")
 
+# 一轮问答里最多让模型连续调用几个工具。2 是实测够用的值：
+# 「比价 + 查账单」这类组合问题要 2 个，再多基本是在打转。
+MAX_TOOL_ROUNDS = 2
+
 # 多智能体注册表：每位专家有自己的系统人设 + 可用工具白名单。
 # 只有两位专家（见 app/agent/roles.py）；回答以表格为主、正文只留一两句结论。
 REPLY_RULES = (
@@ -28,8 +32,14 @@ AGENTS = {
             "问某个商品在哪买划算时直接给比价结论，不要套羊毛开场白。"
             "比价走京东/天猫实时数据：用户只发链接时先让他复制商品标题，"
             "服装鞋包饰品等非标品不支持比价，直说不支持、不要硬编价格。"
+            "另外你还会两件事：用户报出手头食材时用 generate_recipe 出省钱菜谱；"
+            "问「怎么省」这类方法题（超市打折、外卖、话费、加油…）时用 search_knowledge 查攻略库。"
+            "用户一次问几件事，就分别调用几个工具再回答：又问比价又问优惠活动时，"
+            "price_compare 和 coupon_advice 都要调，不能拿一个工具的结果去搪塞所有问题。"
+            "用户说某类消费（打车/奶茶/外卖/电影…）花太多了，用 cheaper_alternative 给平替和可省金额。"
         ) + REPLY_RULES,
-        "tools": ["coupon_advice", "price_compare", "shopping_advice"],
+        "tools": ["coupon_advice", "price_compare", "shopping_advice",
+                  "generate_recipe", "search_knowledge", "cheaper_alternative"],
     },
     "budget": {
         "name": "理财管家",
@@ -37,9 +47,17 @@ AGENTS = {
             "你是「理财管家」，帮用户管理月度预算和省钱目标：分析账单、查看省钱目标达成、"
             "给出预算控制与理财建议。用户口述消费（如「昨晚外卖32」）时，用 add_bill 帮他记账。"
             "谈消费情况必须先调用工具拿真实账单，引用具体金额和占比，绝不编造数字。"
-            "语气专业但不严厉，多给可落地的省钱小技巧。"
+            "语气专业但不严厉，多给可落地的省钱小技巧——给技巧前先用 search_knowledge 查攻略库，"
+            "别凭空说。"
+            "还有三个本事：问「这个月会不会超/还能花多少/月底会花多少」用 spending_forecast；"
+            "问「有没有忘掉的扣费/哪些钱月月都花」用 detect_fixed_spend；"
+            "要「月度复盘/总结这个月」用 monthly_report。"
+            "用户上传支付截图、账单或小票照片时，从图里的金额、收款方、时间提取每一笔消费，"
+            "调 add_bill 写进账本（收款方当 source，金额换算成元），"
+            "然后回一句「记了几笔、共多少钱」，不要只把截图内容复述一遍。"
         ) + REPLY_RULES,
-        "tools": ["budget_advice", "analyze_bills", "add_bill"],
+        "tools": ["budget_advice", "analyze_bills", "add_bill", "search_knowledge",
+                  "spending_forecast", "detect_fixed_spend", "monthly_report"],
     },
 }
 
@@ -62,8 +80,9 @@ def _agent_tools(name: str) -> list:
 # 它只会把「Step 1: 调用 analyze_bills」当成话说出来），所以带图的对话拆两步走：
 # 先让视觉模型把图抄成文字，再把这段文字并回用户消息，交给会调工具的文本模型。
 VISION_TRANSCRIBE_PROMPT = (
-    "你是图片转文字工具。把图片里的商品名、品牌、型号、金额、日期、规格等关键信息"
-    "逐条原样抄出来，用短句列。"
+    "你是图片转文字工具。把图片里的商品名、品牌、型号、金额、日期、规格、"
+    "商户/收款方名称等关键信息逐条原样抄出来，用短句列。"
+    "支付截图或账单小票要抄全：交易金额、收款方、支付时间、支付方式。"
     "看不清的部分直接跳过不写，禁止推测、补全、评价价格或回答图里的问题。"
 )
 
@@ -82,12 +101,16 @@ def _vision_to_text(message: str, image_refs) -> str:
     if not got:
         return message + "\n[图片识别失败] 这次没读出图片内容，请如实告诉用户" \
                          "可以重新上传或直接打字说明，不要假装看到了图里的东西。"
-    return message + "\n[下面是视觉模型抄录的图片内容，可能有错，只当参考] " + got
+    # 明确告诉文本模型：这段是**要处理的数据**，不是让你复述的内容。
+    # 之前它拿到这段就照着念了一遍，用户拍支付截图想记账，结果得到一段截图描述。
+    return (message + "\n[下面是视觉模型从图片里抄出的内容，这是要你来处理的数据，"
+                      "不是让你复述给用户看的文字。按用户的要求直接用它的信息（记账/比价/回答），"
+                      "不要再把图里的东西原样描述一遍] " + got)
 
 
 def _with_link_hint(message: str) -> str:
-    # 引擎每轮只调一次工具，所以链接解析不做成工具，直接算好附在消息里，
-    # 省掉一次工具调用，模型才有余地把链接原样填进 price_compare 的参数
+    # 链接解析不做成工具，而是算好直接附在消息里：做成工具的话模型得先花一轮去调它，
+    # 才拿得到商品名去调 price_compare，白白吃掉 MAX_TOOL_ROUNDS 的一个名额。
     if not message or "http" not in message:
         return message
     try:
@@ -131,19 +154,23 @@ def run_agent(user_id: int, message: str, db: Session, agent: str = DEFAULT_AGEN
         messages.append({"role": "user", "content": _with_link_hint(message)})
 
         tools = _agent_tools(agent)
-        result = call_llm(messages, tools)
+        used = []
+        for _round in range(MAX_TOOL_ROUNDS):
+            result = call_llm(messages, tools)
+            if not result["tool_calls"]:
+                return result["content"], ("、".join(used) or "chat")
 
-        if result["tool_calls"]:
             tool_call = result["tool_calls"][0]
             tool_name = tool_call["function"]["name"]
             tool_args = tool_call["function"]["arguments"]
+            used.append(tool_name)
 
             tool_result, is_final, _, _ = execute_tool(tool_name, tool_args, user_id, db,
                                                        context={"message": message})
 
             # 生成型工具（菜谱/购物等）已产出完整回复，直接返回，跳过二次 LLM 加速
             if is_final:
-                return tool_result, tool_name
+                return tool_result, "、".join(used)
 
             messages.append({
                 "role": "assistant",
@@ -155,10 +182,10 @@ def run_agent(user_id: int, message: str, db: Session, agent: str = DEFAULT_AGEN
                 "tool_call_id": tool_call["id"],
                 "content": tool_result,
             })
-            final = call_llm(messages)
-            return final["content"], tool_name
 
-        return result["content"], "chat"
+        # 轮次用尽模型还在要工具：强制一次不带工具的生成，保证一定拿到文字回复
+        final = call_llm(messages)
+        return final["content"], "、".join(used)
 
     except Exception as e:
         log.exception("Agent 调用失败")
@@ -185,51 +212,61 @@ def run_agent_stream(user_id: int, message: str, db: Session, image_refs=None,
         messages.append({"role": "user", "content": user_text})
         tools = _agent_tools(agent)
 
-        tool_call = None
         tokens = 0
-        for evt in _stream_pass(messages, tools):
-            if evt["type"] == "toolcall":
-                tool_call = evt["tool_call"]
-                break
-            if evt["type"] == "usage":
-                tokens += int(evt["usage"].get("total_tokens") or 0)
-                continue
-            yield evt  # chunk
+        used_tools = []
+        # 最多两轮工具调用。之前第二遍传的是 tools=None，模型收到「缺少必填参数：X，请重新调用
+        # 本工具」后压根没有再调一次的机会，registry 里承诺的自纠正从来没生效过；
+        # 同时也答不了「比个价顺便看看我这个月花多少」这种要连用两个工具的问题。
+        # 设上限是为了防死循环，用完还没给答案就强制收尾，不让用户面对空屏。
+        for _round in range(MAX_TOOL_ROUNDS):
+            tool_call = None
+            for evt in _stream_pass(messages, tools):
+                if evt["type"] == "toolcall":
+                    tool_call = evt["tool_call"]
+                    break
+                if evt["type"] == "usage":
+                    tokens += int(evt["usage"].get("total_tokens") or 0)
+                    continue
+                yield evt  # chunk
 
-        # 没有触发工具：已把整段回复流式返回
-        if not tool_call:
-            yield {"type": "done", "tokens_used": tokens}
-            return
+            # 这轮模型直接作答、没再要工具：文本已经流式发完，收尾
+            if not tool_call:
+                yield {"type": "done", "tokens_used": tokens}
+                return
 
-        tool_name = tool_call["function"]["name"]
-        tool_args = tool_call["function"]["arguments"]
-        yield {"type": "meta", "tool_used": tool_name}
+            tool_name = tool_call["function"]["name"]
+            tool_args = tool_call["function"]["arguments"]
+            used_tools.append(tool_name)
+            # 前端是整体赋值，所以每次都发累积的完整列表，标签会变成「工具A、工具B」
+            yield {"type": "meta", "tool_used": "、".join(used_tools)}
 
-        tool_result, is_final, links, tables = execute_tool(tool_name, tool_args, user_id, db,
-                                                            context={"message": message})
-        if tables:
-            # 表格先出：用户第一眼看到的就是数字对比，文字结论随后跟上
-            yield {"type": "tables", "items": tables}
-        if links:
-            # 先给卡片数据，让购买入口尽早出现，不必等文字生成完
-            yield {"type": "links", "items": links}
+            tool_result, is_final, links, tables = execute_tool(
+                tool_name, tool_args, user_id, db, context={"message": message})
+            if tables:
+                # 表格先出：用户第一眼看到的就是数字对比，文字结论随后跟上
+                yield {"type": "tables", "items": tables}
+            if links:
+                # 先给卡片数据，让购买入口尽早出现，不必等文字生成完
+                yield {"type": "links", "items": links}
 
-        if is_final:
-            # 生成型工具已产出完整回复
-            yield {"type": "chunk", "text": tool_result}
-            yield {"type": "done", "tokens_used": tokens}
-            return
+            if is_final:
+                # 生成型工具已产出完整回复
+                yield {"type": "chunk", "text": tool_result}
+                yield {"type": "done", "tokens_used": tokens}
+                return
 
-        messages.append({
-            "role": "assistant",
-            "content": "",
-            "tool_calls": [tool_call],
-        })
-        messages.append({
-            "role": "tool",
-            "tool_call_id": tool_call["id"],
-            "content": tool_result,
-        })
+            messages.append({
+                "role": "assistant",
+                "content": "",
+                "tool_calls": [tool_call],
+            })
+            messages.append({
+                "role": "tool",
+                "tool_call_id": tool_call["id"],
+                "content": tool_result,
+            })
+
+        # 轮次用尽模型还在要工具：最后强制一遍不带工具的生成，保证有话说
         for evt in _stream_pass(messages, None):
             if evt["type"] == "usage":
                 tokens += int(evt["usage"].get("total_tokens") or 0)

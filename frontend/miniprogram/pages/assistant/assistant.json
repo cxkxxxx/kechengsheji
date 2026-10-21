@@ -1,5 +1,7 @@
 {
   "navigationBarTitleText": "AI省钱助手",
+  "navigationBarBackgroundColor": "#FFFFFF",
+  "navigationBarTextStyle": "black",
   "enablePullDownRefresh": true,
   "backgroundTextStyle": "dark"
 }

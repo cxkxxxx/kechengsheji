@@ -20,3 +20,16 @@
 .mine-row { display: flex; align-items: center; gap: var(--s-2); padding: var(--s-3) var(--s-4); }
 .mine-title { font-size: 28rpx; font-weight: 500; line-height: 1.45; }
 .mine-meta { display: flex; align-items: center; gap: var(--s-2); margin-top: 10rpx; flex-wrap: wrap; }
+
+page { background: #f7f8fa; }
+.ac-head .hero { padding: 28rpx 32rpx; border-radius: 0 0 18rpx 18rpx; background: #263b55; }
+.ac-head .hero-title { font-size: 34rpx; }
+.ac-head .hero-sub { margin-top: 6rpx; font-size: 22rpx; }
+.container > .card { margin: 18rpx 24rpx; padding: 24rpx; border: 1rpx solid #edf0f3; border-radius: 12rpx; box-shadow: 0 4rpx 18rpx rgba(28,39,53,.04); }
+.tag { border-radius: 8rpx; }
+.tag.active { color: #263b55; background: #edf2f6; border-color: #cbd5df; }
+.ac-title { font-size: 31rpx; }
+.ac-content { min-height: 340rpx; font-size: 27rpx; }
+.ac-foot button { border-radius: 10rpx; box-shadow: none; }
+.up-add { border-radius: 10rpx; }
+.up-set { background: rgba(38,59,85,.88); }
