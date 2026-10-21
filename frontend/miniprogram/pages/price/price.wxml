@@ -1,0 +1,76 @@
+<view class="page">
+  <!-- 搜索区 -->
+  <view class="card search-card">
+    <view class="search-row">
+      <input class="search-input" placeholder="商品名，或直接粘一段分享文案"
+             value="{{kw}}" bindinput="onInput" confirm-type="search" bindconfirm="search" />
+      <view class="search-btn {{loading ? 'search-btn-off' : ''}}" bindtap="search">
+        {{loading ? '查询中' : '比价'}}
+      </view>
+    </view>
+    <view class="hist" wx:if="{{history.length && !searched}}">
+      <text class="hist-label">搜过</text>
+      <view class="hist-tag" wx:for="{{history}}" wx:key="*this"
+            bindtap="tapHistory" data-kw="{{item}}">{{item}}</view>
+      <text class="hist-clear" bindtap="clearAll">清空</text>
+    </view>
+  </view>
+
+  <!-- 结论条：最低价 + 价差 + 历史低价。
+       判断要落在 res.lowest 上而不是 items.length —— 后端只在首条确实有到手价时才给 lowest，
+       只看 items 非空的话，遇到「有结果但都没价格」会渲染出一块空白。 -->
+  <view class="card verdict" wx:if="{{res && res.lowest}}">
+    <view class="verdict-top">
+      <text class="verdict-tag">最低</text>
+      <text class="verdict-platform">{{res.lowest.platform}}</text>
+      <text class="verdict-price num">{{res.lowestText}} 元</text>
+    </view>
+    <text class="verdict-title">{{res.lowest.title}}</text>
+    <view class="verdict-meta">
+      <text class="chip chip-grey" wx:if="{{res.spread}}">最高最低差 {{res.spreadText}}</text>
+      <text class="chip chip-grey" wx:if="{{res.histLowText}}">站内历史最低 {{res.histLowText}}</text>
+      <text class="chip chip-ok" wx:if="{{res.live}}">实时到手价</text>
+      <text class="chip chip-grey" wx:else>仅站内记录价</text>
+    </view>
+    <view class="verdict-btn" bindtap="copyUrl" data-url="{{res.lowest.url}}">复制最低价的链接</view>
+  </view>
+
+  <!-- 各渠道对比 -->
+  <view class="card" wx:if="{{items.length}}">
+    <text class="section-title">各渠道价格（低 → 高）</text>
+    <view class="cmp-row" wx:for="{{items}}" wx:key="index" bindtap="copyUrl" data-url="{{item.url}}">
+      <view class="cmp-dot" style="background: {{item.color}}"></view>
+      <view class="flex-1">
+        <view class="cmp-line1">
+          <text class="cmp-platform">{{item.platform}}</text>
+          <text class="chip chip-sm chip-ok" wx:if="{{item.couponText}}">{{item.couponText}}</text>
+        </view>
+        <text class="cmp-title ellipsis">{{item.title}}</text>
+        <text class="cmp-src">{{item.source}}{{item.sales_tip ? ' · ' + item.sales_tip : ''}}</text>
+      </view>
+      <view class="cmp-right">
+        <text class="cmp-price num">{{item.priceText}}</text>
+        <text class="cmp-rank" wx:if="{{index === 0}}">最低</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 没查到价格：如实说，不硬编 -->
+  <view class="card empty" wx:if="{{searched && !items.length}}">
+    <view class="list-icon"><view class="ic ic-search"></view></view>
+    <text class="title">没查到可比的价格</text>
+    <text class="desc empty-desc">
+      {{res && res.warnings && res.warnings.length ? res.warnings[0] : '可能是商品名太模糊，或第三方比价源当天被限流。换个更具体的名字再试，比如带上品牌和型号。'}}
+    </text>
+    <view class="btn-primary empty-btn" bindtap="goAssistant">让 AI 助手帮我看看</view>
+  </view>
+
+  <!-- 首屏引导 -->
+  <view class="intro" wx:if="{{!searched && !history.length}}">
+    <text class="section-title">怎么用</text>
+    <view class="intro-item"><text class="intro-n">1</text><text class="intro-t">输入商品名，比如「小米手环8 Pro」，或直接把电商分享文案粘进来</text></view>
+    <view class="intro-item"><text class="intro-n">2</text><text class="intro-t">系统查各渠道到手价（含优惠券），按从低到高排好</text></view>
+    <view class="intro-item"><text class="intro-n">3</text><text class="intro-t">点任意一行复制链接，到浏览器或对应 App 打开</text></view>
+    <text class="desc intro-note">微信小程序不能直接打开外部网址，所以是复制链接而不是跳转。</text>
+  </view>
+</view>

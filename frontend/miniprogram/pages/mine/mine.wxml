@@ -34,6 +34,11 @@
       <text class="flex-1 row-name">省钱目标与账单分析</text>
       <view class="ic ic-sm ic-arrow"></view>
     </view>
+    <view class="list-row" bindtap="goPrice">
+      <view class="list-icon"><view class="ic ic-search"></view></view>
+      <text class="flex-1 row-name">商品比价</text>
+      <view class="ic ic-sm ic-arrow"></view>
+    </view>
     <view class="list-row" bindtap="goAssistant">
       <view class="list-icon"><view class="ic ic-spark"></view></view>
       <text class="flex-1 row-name">问问 AI 助手</text>

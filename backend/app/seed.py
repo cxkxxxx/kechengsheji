@@ -247,14 +247,15 @@ def seed():
         # 7. 测试用户账单：锚定「本月」往前 4 个月，环比和趋势才有数据可比。
         #    以前写死 datetime.date(2026, 9, day)，时间一走到 10 月，
         #    账单页默认视图和「分析我这个月账单」就全是空的。
-        #    条目直接复用账单接口里那份 _DEMO_ITEMS，两处各写一套迟早会对不上。
+        #    生成逻辑统一走 demo_bills，和接口 /bills/seed-demo 用同一份，
+        #    否则两条路径造出的数据形态不一样，预测回测的结论就对不上演示。
         if db.query(Bill).count() == 0:
-            from app.api.routes.bills import _DEMO_ITEMS, _make_order_no
+            from app.services import demo_bills
             today = datetime.date.today()
             months = []
             y, mo = today.year, today.month
             for _ in range(4):
-                months.append((y, mo))
+                months.append("%04d-%02d" % (y, mo))
                 mo -= 1
                 if mo < 1:
                     mo = 12
@@ -262,25 +263,14 @@ def seed():
             months.reverse()
             n = 0
             for u in users:
-                for (yy, mm) in months:
-                    last = calendar.monthrange(yy, mm)[1]
-                    if (yy, mm) == (today.year, today.month):
-                        last = min(last, today.day)     # 别生成未来的消费
-                    if last < 1:
-                        continue
-                    for _ in range(random.randint(8, 12)):
-                        label, cat, (lo, hi), chans = random.choice(_DEMO_ITEMS)
-                        d = datetime.date(yy, mm, random.randint(1, last))
-                        ch = random.choice(chans)
-                        db.add(Bill(
-                            user_id=u.id, amount=round(random.uniform(lo, hi), 2),
-                            category=cat, source=label, pay_channel=ch,
-                            order_no=_make_order_no(ch, d) if random.random() < 0.6 else "",
-                            bill_date=d,
-                        ))
+                for ym in months:
+                    for r in demo_bills.generate_month(db, u.id, ym, today=today)["rows"]:
+                        db.add(Bill(user_id=u.id, amount=r["amount"], category=r["category"],
+                                    source=r["source"], pay_channel=r["pay_channel"],
+                                    order_no=r["order_no"], bill_date=r["bill_date"]))
                         n += 1
             db.commit()
-            print(f"账单: 写入 {n} 条（覆盖 {months[0][0]}-{months[0][1]:02d} 起 4 个月）")
+            print("账单: 写入 %d 条（覆盖 %s ~ %s）" % (n, months[0], months[-1]))
 
         print("\n✅ Mock 数据写入完成！")
     finally:

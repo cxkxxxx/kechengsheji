@@ -42,7 +42,20 @@ Page({
     goalForm: { spend_limit: '', target_amount: '' },
     categories: ['餐饮', '购物', '交通', '生活', '娱乐', '医疗', '其他'],
     payChannels: ['微信支付', '支付宝', '云闪付', '京东支付', '美团支付'],
-    form: { amount: '', category: '餐饮', source: '', pay_channel: '', order_no: '', bill_date: '' }
+    form: { amount: '', category: '餐饮', source: '', pay_channel: '', order_no: '', bill_date: '' },
+    // 每日打卡状态
+    ck: { amount: '', note: '', cells: [], count: 0, checked: false, todaySaved: '', submitting: false },
+    // 快捷记账预置项：金额取常见真实价位，点一下就入账
+    quickItems: [
+      { label: '早餐', cat: '餐饮', amount: 8, ic: 'ic-wallet' },
+      { label: '午餐', cat: '餐饮', amount: 20, ic: 'ic-wallet' },
+      { label: '奶茶', cat: '餐饮', amount: 15, ic: 'ic-gift' },
+      { label: '地铁', cat: '交通', amount: 5, ic: 'ic-link' },
+      { label: '打车', cat: '交通', amount: 26, ic: 'ic-arrow' },
+      { label: '日用品', cat: '购物', amount: 35, ic: 'ic-plus' }
+    ],
+    // 消费日历热力图
+    cal: { cells: [], max: '', picked: false, pickedLabel: '', pickedAmount: '', pickedCount: 0 }
   },
 
   onLoad() {
@@ -110,10 +123,138 @@ Page({
         plan: this._decoratePlan(month === currentMonth() ? plan : null),
         hasBills: list.length > 0,
         loading: false
-      }, () => this.drawPieChart(cats))   // canvas 节点要等这一帧渲染完才存在
+      }, () => {
+        this.drawPieChart(cats)   // canvas 节点要等这一帧渲染完才存在
+        this._buildCal(list, month)
+      })
+      this.loadCheckin(month)
     } catch (e) {
       this.setData({ loading: false })
       console.error(e)
+    }
+  },
+
+  // 消费日历热力图：直接把已加载的账单按天聚合，不用多打一次接口
+  _buildCal(list, month) {
+    const byDay = {}
+    ;(list || []).forEach(b => {
+      const d = parseInt(String(b.bill_date || '').slice(8, 10), 10)
+      if (!d) return
+      byDay[d] = byDay[d] || { amount: 0, count: 0 }
+      byDay[d].amount += parseFloat(b.amount) || 0
+      byDay[d].count += 1
+    })
+    const y = parseInt(month.slice(0, 4), 10)
+    const m = parseInt(month.slice(5, 7), 10)
+    const dim = new Date(y, m, 0).getDate()
+    const lead = new Date(y, m - 1, 1).getDay()     // 当月 1 号前面空几格（周日开头）
+    const vals = Object.keys(byDay).map(k => byDay[k].amount)
+    const max = vals.length ? Math.max.apply(null, vals) : 0
+
+    const cells = []
+    for (let i = 0; i < lead; i++) cells.push({ key: 'e' + i, day: 0, cls: 'cal-empty', short: '' })
+    for (let d = 1; d <= dim; d++) {
+      const v = byDay[d] ? byDay[d].amount : 0
+      // 分四档上色，用「占峰值的比例」而不是绝对金额，换个月份也能横向比较
+      let cls = v > 0 ? 'cal-l1' : 'cal-l0'
+      if (max > 0 && v > 0) {
+        const r = v / max
+        cls = r > 0.66 ? 'cal-l4' : r > 0.33 ? 'cal-l3' : r > 0.12 ? 'cal-l2' : 'cal-l1'
+      }
+      cells.push({ key: 'd' + d, day: d, cls, short: v >= 1000 ? (v / 1000).toFixed(1) + 'k' : (v ? Math.round(v) : '') })
+    }
+    this.setData({
+      'cal.cells': cells,
+      'cal.max': max ? formatMoney(max) : '—',
+      'cal.picked': false, 'cal.pickedLabel': '', 'cal.pickedAmount': '', 'cal.pickedCount': 0
+    })
+  },
+
+  pickCalDay(e) {
+    const d = e.currentTarget.dataset.day
+    if (!d) return
+    const month = this.data.month
+    const rows = this.data.bills.filter(b =>
+      String(b.bill_date).slice(0, 10) === month + '-' + (d < 10 ? '0' + d : d))
+    const sum = rows.reduce((s, b) => s + (parseFloat(b.amount) || 0), 0)
+    this.setData({
+      cal: Object.assign({}, this.data.cal, {
+        picked: true,
+        pickedLabel: month.slice(5) + '月' + d + '日',
+        pickedAmount: formatMoney(sum) + ' 元',
+        pickedCount: rows.length
+      })
+    })
+  },
+
+  // 打卡：拉本月明细，用来渲染日历格子和高亮「今天已打」
+  async loadCheckin(month) {
+    if (month !== currentMonth()) {
+      this.setData({ 'ck.cells': [], 'ck.count': 0, 'ck.checked': false })
+      return
+    }
+    try {
+      const d = await request('/checkin/month?month=' + month, 'GET')
+      const done = {}
+      ;(d.days || []).forEach(x => { done[x.day] = x })
+      const now = new Date()
+      const dim = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
+      const cells = []
+      for (let i = 1; i <= dim; i++) {
+        cells.push({
+          key: i, day: i,
+          cls: done[i] ? 'ck-on' : (i < now.getDate() ? 'ck-miss' : 'ck-off'),
+          saved: done[i] ? formatMoney(done[i].saved_amount) : ''
+        })
+      }
+      this.setData({
+        'ck.cells': cells,
+        'ck.count': d.count || 0,
+        'ck.checked': !!d.checked_today,
+        'ck.todaySaved': done[now.getDate()] ? formatMoney(done[now.getDate()].saved_amount) + ' 元' : ''
+      })
+    } catch (e) { console.error(e) }
+  },
+
+  onCkAmount(e) { this.setData({ 'ck.amount': e.detail.value }) },
+  onCkNote(e) { this.setData({ 'ck.note': e.detail.value }) },
+
+  async submitCheckin() {
+    if (this.data.ck.submitting) return
+    const v = parseFloat(this.data.ck.amount)
+    if (!(v > 0)) {
+      wx.showToast({ title: '请填写今天省了多少元', icon: 'none' })
+      return
+    }
+    this.setData({ 'ck.submitting': true })
+    try {
+      const r = await request('/checkin/do', 'POST', { saved_amount: v, note: this.data.ck.note || '' })
+      wx.showToast({ title: r && r.repeated ? '已更新今天' : '打卡成功', icon: 'success' })
+      this.setData({ 'ck.amount': '', 'ck.note': '', 'ck.submitting': false })
+      this.loadData(true)
+    } catch (e) {
+      this.setData({ 'ck.submitting': false })
+      wx.showToast({ title: e.message || '打卡失败', icon: 'none' })
+    }
+  },
+
+  // 快捷记账：点一下就按默认金额入账。后端 POST /bills 是现成的，不用新接口。
+  async quickAdd(e) {
+    if (this._quickBusy) return
+    const it = this.data.quickItems[e.currentTarget.dataset.i]
+    if (!it) return
+    this._quickBusy = true
+    try {
+      await request('/bills', 'POST', {
+        amount: it.amount, category: it.cat, source: it.label,
+        bill_date: formatDate(new Date())
+      })
+      wx.showToast({ title: '已记 ' + it.label + ' ¥' + it.amount, icon: 'success' })
+      this.loadData(true)
+    } catch (err) {
+      wx.showToast({ title: err.message || '记录失败', icon: 'none' })
+    } finally {
+      setTimeout(() => { this._quickBusy = false }, 400)
     }
   },
 
@@ -129,9 +270,24 @@ Page({
         ? '已超支 ' + formatMoney(spend - limit) + ' 元'
         : '还可花 ' + formatMoney(limit - spend) + ' 元'
     }
+    // 「每天还能花多少」：只有看的是本月、且没超支时才有意义
+    const now = new Date()
+    const viewing = this.data.month || currentMonth()
+    const isNow = viewing === currentMonth()
+    const dim = new Date(parseInt(viewing.slice(0, 4), 10),
+                         parseInt(viewing.slice(5, 7), 10), 0).getDate()
+    const daysLeft = isNow ? Math.max(0, dim - now.getDate()) : 0
+    let perDay = ''
+    if (limit > 0 && isNow && !over && daysLeft > 0) {
+      perDay = '剩 ' + daysLeft + ' 天，每天可花 ' + formatMoney((limit - spend) / daysLeft) + ' 元'
+    } else if (limit > 0 && isNow && !over) {
+      perDay = '今天是本月最后一天'
+    }
     return Object.assign({}, plan, {
       budget_over: over,
       budget_overText: overText,
+      budget_perDay: perDay,
+      days_left: daysLeft,
       spend: formatMoney(spend),
       saved_amount: formatMoney(plan.saved_amount)
     })

@@ -141,6 +141,8 @@ Page({
 
   goBill() { wx.switchTab({ url: '/pages/bill/bill' }) },
 
+  goPrice() { wx.navigateTo({ url: '/pages/price/price' }) },
+
   goAssistant() { wx.switchTab({ url: '/pages/assistant/assistant' }) },
 
   goSettings() {

@@ -19,50 +19,8 @@ from app.agent.llm import call_llm_simple
 
 router = APIRouter()
 
-# 演示账单条目：(用途·商户, 分类, 金额区间, 该场景常用的支付渠道)
-# 以前只有「午餐」「外卖」这种两字词，账单页看不出钱到底花在哪，AI 分析也只能说个分类占比。
-# 带上商户和渠道之后，明细页、固定扣费识别、渠道分布才有东西可看。
-_DEMO_ITEMS = [
-    ("早餐·老面包子铺", "餐饮", (5, 14), ["微信支付"]),
-    ("午餐·公司食堂", "餐饮", (12, 26), ["微信支付", "支付宝"]),
-    ("晚餐·阮记老面馆", "餐饮", (18, 46), ["微信支付", "支付宝"]),
-    ("外卖·黄焖鸡米饭", "餐饮", (16, 34), ["微信支付", "美团支付"]),
-    ("奶茶·蜜雪冰城", "餐饮", (6, 18), ["微信支付"]),
-    ("咖啡·瑞幸", "餐饮", (9, 20), ["支付宝"]),
-    ("超市买菜·永辉超市", "购物", (28, 120), ["微信支付", "支付宝", "云闪付"]),
-    ("日用品·拼多多", "购物", (12, 89), ["微信支付"]),
-    ("衣服·淘宝", "购物", (79, 359), ["支付宝"]),
-    ("数码配件·京东", "购物", (25, 199), ["微信支付", "京东支付"]),
-    ("地铁通勤", "交通", (3, 9), ["微信支付", "支付宝"]),
-    ("打车·滴滴出行", "交通", (11, 46), ["微信支付", "支付宝"]),
-    ("共享单车月卡", "交通", (12, 18), ["微信支付"]),
-    ("公交", "交通", (1, 4), ["微信支付"]),
-    ("水电费", "生活", (88, 268), ["支付宝", "微信支付"]),
-    ("话费充值·中国移动", "生活", (30, 100), ["微信支付", "支付宝"]),
-    ("宽带月租", "生活", (58, 79), ["支付宝"]),
-    ("视频会员自动续费", "生活", (15, 25), ["微信支付", "支付宝"]),
-    ("电影票", "娱乐", (35, 68), ["淘票票", "微信支付"]),
-    ("游戏充值", "娱乐", (6, 128), ["微信支付", "支付宝"]),
-    ("KTV 聚会", "娱乐", (60, 210), ["支付宝"]),
-    ("药品·大药房", "医疗", (18, 96), ["微信支付", "支付宝"]),
-    ("门诊挂号", "医疗", (10, 45), ["支付宝", "微信支付"]),
-    ("生日礼物", "其他", (45, 220), ["微信支付", "支付宝"]),
-    ("宠物粮", "其他", (58, 168), ["京东支付"]),
-]
-
-# 交易单号：只有「从账单截图/支付通知里导进来」的那部分才有，手打的留空，
-# 这样演示时两种状态都能看到，也不会显得假。前缀按各家真实单号的样子凑。
-_ORDER_PREFIX = {"微信支付": "4200", "支付宝": "2200", "云闪付": "1300",
-                 "京东支付": "7100", "美团支付": "8300", "淘票票": "3100"}
-
-
-def _make_order_no(channel: str, d: date) -> str:
-    prefix = _ORDER_PREFIX.get(channel, "4200")
-    if channel == "支付宝":
-        return "%s%02d%02d%s%s" % (d.year, d.month, d.day, prefix,
-                                   "".join(random.choice("0123456789") for _ in range(14)))
-    return "%s%s" % (prefix, "".join(random.choice("0123456789") for _ in range(18)))
-
+# 演示账单的生成逻辑在 app/services/demo_bills.py，seed-demo 接口和 seed.py 共用那一份。
+# 这里只保留月份换算这类接口层自己要用的工具函数。
 
 def _month_str(y: int, m: int) -> str:
     return "%04d-%02d" % (y, m)
@@ -222,32 +180,15 @@ def seed_demo(
                                          Bill.bill_date <= last).delete(synchronize_session=False)
 
     cnt = 0
+    from app.services import demo_bills
     for ym in targets:
-        start, last = _month_bounds(ym)
-        # 本月不能灌到还没发生的日期，否则账单里出现「未来的消费」，环比和打卡都会怪
-        hi_day = min(last.day, today.day) if (start.year, start.month) == (today.year, today.month) else last.day
-        if hi_day < 1:
-            continue
-        # 固定扣费类每月只该出现一次，先单独铺一遍，让 detect_fixed_spend 真能认出东西来
-        for label, cat, (lo, hi), chans in _DEMO_ITEMS:
-            if "续费" not in label and "月租" not in label and "月卡" not in label:
-                continue
-            d = date(start.year, start.month, random.randint(1, hi_day))
-            ch = random.choice(chans)
-            db.add(Bill(user_id=current_user.id, amount=round(random.uniform(lo, hi), 2),
-                        category=cat, source=label, pay_channel=ch,
-                        order_no=_make_order_no(ch, d), bill_date=d))
-            cnt += 1
-        for _ in range(random.randint(26, 34)):
-            label, cat, (lo, hi), chans = random.choice(_DEMO_ITEMS)
-            d = date(start.year, start.month, random.randint(1, hi_day))
-            ch = random.choice(chans)
-            # 约六成带交易单号（当作是从支付通知/截图导进来的），其余留空模拟手打
-            has_no = random.random() < 0.6
-            db.add(Bill(user_id=current_user.id, amount=round(random.uniform(lo, hi), 2),
-                        category=cat, source=label, pay_channel=ch,
-                        order_no=_make_order_no(ch, d) if has_no else "",
-                        bill_date=d))
+        # 生成逻辑全在 demo_bills 里：月初固定项 + 按日权重撒日常 + 月内/月度结构。
+        # 这里只负责删旧插新。
+        spec = demo_bills.generate_month(db, current_user.id, ym, today=today)
+        for r in spec["rows"]:
+            db.add(Bill(user_id=current_user.id, amount=r["amount"], category=r["category"],
+                        source=r["source"], pay_channel=r["pay_channel"],
+                        order_no=r["order_no"], bill_date=r["bill_date"]))
             cnt += 1
     db.commit()
     return success({"imported": cnt, "cleared": deleted, "months": targets,

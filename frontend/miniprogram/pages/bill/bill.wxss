@@ -133,3 +133,71 @@ page { background: #f7f8fa; }
 .dialog { border-radius: 16rpx; }
 .dialog .input, .dialog .picker { border-radius: 10rpx; }
 .btn-confirm { border-radius: 10rpx; }
+
+/* ===== 每日打卡 ===== */
+.checkin-card { margin-top: 20rpx; }
+.ck-row { display: flex; align-items: center; gap: 0; margin-top: 22rpx; }
+.ck-input {
+  flex: 1; height: 68rpx; padding: 0 20rpx; font-size: 26rpx;
+  background: var(--fill); border-radius: var(--r-sm); color: var(--ink);
+}
+.ck-note { margin: 0 14rpx; flex: 1.4; }
+.ck-btn {
+  flex-shrink: 0; height: 68rpx; line-height: 68rpx; padding: 0 28rpx;
+  background: var(--brand); color: #fff; font-size: 26rpx;
+  border-radius: var(--r-sm); letter-spacing: 1rpx;
+}
+.ck-btn:active { background: var(--brand-deep); }
+.ck-btn-off { opacity: .55; }
+.ck-cal {
+  display: flex; flex-wrap: wrap; gap: 8rpx; margin-top: 24rpx;
+  padding-top: 22rpx; border-top: 1rpx solid var(--line);
+}
+.ck-cell {
+  width: 44rpx; height: 44rpx; line-height: 44rpx; text-align: center;
+  border-radius: 50%; font-size: 20rpx;
+}
+.ck-cell-n { font-size: 20rpx; }
+.ck-on   { background: var(--brand); color: #fff; }
+.ck-off  { background: var(--fill); color: var(--muted); }
+.ck-miss { background: transparent; color: #C6CCD6; border: 1rpx solid var(--line); }
+
+/* ===== 快捷记账 ===== */
+.quick-card { margin-top: 20rpx; }
+.quick-title { display: block; margin-bottom: 20rpx; }
+.quick-grid { display: flex; flex-wrap: wrap; gap: 16rpx; }
+.quick-item {
+  width: calc((100% - 32rpx) / 3); box-sizing: border-box;
+  display: flex; flex-direction: column; align-items: center; gap: 6rpx;
+  padding: 22rpx 8rpx; background: var(--fill);
+  border: 1rpx solid var(--line); border-radius: var(--r-md);
+  transition: transform .12s ease, background .12s ease;
+}
+.quick-item:active { transform: scale(.95); background: var(--brand-soft); border-color: var(--brand-line); }
+.quick-label { font-size: 25rpx; color: var(--ink); }
+.quick-amt { font-size: 21rpx; color: var(--muted); }
+.quick-hint { display: block; margin-top: 18rpx; font-size: 21rpx; }
+
+/* ===== 消费日历热力图 ===== */
+.cal-card { margin-top: 20rpx; }
+.cal-head { margin-bottom: 18rpx; }
+.cal-week { display: flex; margin-bottom: 8rpx; }
+.cal-wd {
+  flex: 1; text-align: center; font-size: 20rpx; color: var(--muted);
+}
+.cal-grid { display: flex; flex-wrap: wrap; }
+.cal-cell {
+  width: calc(100% / 7); height: 76rpx; box-sizing: border-box;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+.cal-n { font-size: 20rpx; color: var(--muted); line-height: 1.1; }
+.cal-v { font-size: 18rpx; line-height: 1.2; color: var(--ink-2, #6B7686); }
+.cal-empty .cal-n, .cal-empty .cal-v { visibility: hidden; }
+.cal-l0 { background: transparent; }
+.cal-l1 { background: rgba(96, 118, 140, .10); border-radius: 8rpx; }
+.cal-l2 { background: rgba(96, 118, 140, .26); border-radius: 8rpx; }
+.cal-l3 { background: rgba(96, 118, 140, .48); border-radius: 8rpx; }
+.cal-l4 { background: rgba(96, 118, 140, .74); border-radius: 8rpx; }
+.cal-l4 .cal-n, .cal-l4 .cal-v { color: #fff; }
+.cal-foot { margin-top: 14rpx; padding-top: 14rpx; border-top: 1rpx solid var(--line); }
+.goal-hint { display: block; margin-top: 10rpx; font-size: 21rpx; }

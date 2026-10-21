@@ -67,19 +67,16 @@ def spending_forecast(month: str = "", user_id: int = 0, db=None, **kwargs):
     y, m = int(month[:4]), int(month[5:7])
     days_in_month = calendar.monthrange(y, m)[1]
     is_current = (y, m) == (today.year, today.month)
-    # 过完的月份直接按整月算，别拿「今天」去截它
     days_spent = today.day if is_current else days_in_month
     days_spent = max(1, min(days_spent, days_in_month))
 
     total = round(sum(float(r[1] or 0) for r in rows), 2)
-    daily = total / days_spent
+    daily = round(total / days_spent, 2)
     forecast = round(daily * days_in_month, 2)
-    remaining = round(forecast - total, 2) if is_current else 0.0
 
     plan = _plan(db, user_id, month)
     limit = float(plan.spend_limit or 0) if plan else 0.0
 
-    # 分类维度：哪个分类在预测里最失控
     by_cat = {}
     for cat, amount, _d, _s in rows:
         by_cat[cat or "其他"] = by_cat.get(cat or "其他", 0.0) + float(amount or 0)
@@ -87,37 +84,43 @@ def spending_forecast(month: str = "", user_id: int = 0, db=None, **kwargs):
     for cat, v in sorted(by_cat.items(), key=lambda x: -x[1]):
         share = v / total if total else 0
         cat_rows.append([cat, "%.2f" % v, "%d%%" % round(share * 100),
-                         "%.2f" % (v / days_spent), "%.2f" % (v / days_spent * days_in_month)])
+                         "%.2f" % (v / days_spent)])
 
-    L = ["[月末预测] %s" % month]
+    # 这里只负责把数字算出来摊平给模型，不做算法。本科毕设要的是功能面，
+    # 预测精度不是重点 —— 剩下「会不会超、超多少、怎么办」交给大模型根据这些数字判断。
+    L = ["[本月支出进度] %s" % month]
     L.append("已花 %.2f 元（%d/%d 天），日均 %.2f 元" % (total, days_spent, days_in_month, daily))
     if is_current:
-        L.append("照这个速度，月底预计 %.2f 元，还要再花约 %.2f 元" % (forecast, remaining))
+        L.append("按目前日均推算，月底大约 %.2f 元，还剩 %d 天" % (forecast, days_in_month - days_spent))
         if days_spent <= 5:
-            L.append("注意：现在才 %d 号，样本太少，这个预测波动很大，"
-                     "回答时要提醒用户过几天再看会更准，别把数字说死。" % days_spent)
+            L.append("现在才 %d 号，信息还少，估算很粗，别把数字说死。" % days_spent)
     else:
         L.append("该月已结束，实际支出 %.2f 元" % total)
 
     if limit > 0:
         gap = round(limit - (forecast if is_current else total), 2)
-        L.append("支出上限 %.2f 元：%s" % (
-            limit,
-            "预计超支 %.2f 元，后面每天只能花 %.2f 元" % (
-                -gap, max(0.0, (limit - total) / max(1, days_in_month - days_spent)))
-            if is_current and gap < 0
-            else "还有 %.2f 元余量" % gap if gap >= 0
-            else "已超 %.2f 元" % -gap))
+        L.append("本月支出上限 %.2f 元：%s" % (
+            limit, "预计超出 %.2f 元" % -gap if gap < 0 else "还剩 %.2f 元余量" % gap))
+        if is_current and gap < 0 and days_in_month > days_spent:
+            L.append("要压回上限，后面每天平均只能花 %.2f 元"
+                     % max(0.0, (limit - total) / (days_in_month - days_spent)))
     else:
-        L.append("用户没设支出上限（budget_plans.spend_limit 为 0），"
-                 "所以只能给预测值，不要断言「超支」，可以建议他设一个。")
+        L.append("用户没设支出上限，所以不要断言「超支」，可以建议他设一个。")
+
+    prev = _prev_month(month)
+    prev_total = round(sum(float(r[1] or 0) for r in _month_rows(db, user_id, prev)), 2)
+    if prev_total > 0:
+        L.append("上月（%s）共 %.2f 元，本月目前%s %.2f 元" % (
+            prev, prev_total, "多" if total >= prev_total else "少", abs(total - prev_total)))
 
     L.append("")
+    L.append("请根据上面这些数字，用一两句话告诉用户：照这个花法月底大概多少、"
+             "会不会超预算、最需要收着的是哪个分类。只引用这里出现的数字，缺的就说缺。")
     return ToolResult(
         "\n".join(L), [],
-        [make_table("%s 支出预测" % month,
-                    ["分类", "已花(元)", "占比", "日均(元)", "预计月底(元)"], cat_rows,
-                    note="预计月底 = 日均 × 当月天数；本月已过 %d/%d 天" % (days_spent, days_in_month))])
+        [make_table("%s 支出进度" % month,
+                    ["分类", "已花(元)", "占比", "日均(元)"], cat_rows,
+                    note="已过 %d/%d 天，日均 %.2f 元" % (days_spent, days_in_month, daily))])
 
 
 @register_tool(

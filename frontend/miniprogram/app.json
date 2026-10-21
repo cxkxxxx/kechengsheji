@@ -9,7 +9,8 @@
     "pages/articleDetail/articleDetail",
     "pages/articleCreate/articleCreate",
     "pages/postDetail/postDetail",
-    "pages/postCreate/postCreate"
+    "pages/postCreate/postCreate",
+    "pages/price/price"
   ],
   "window": {
     "navigationBarBackgroundColor": "#FFFFFF",

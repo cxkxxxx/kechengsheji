@@ -108,9 +108,22 @@ def do_checkin(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-        # 每日省钱打卡
+    """每日省钱打卡。同一天重复提交按「改当天这条」处理，不会累计两次。
 
-    month = datetime.now().strftime("%Y-%m")
+    原来这里是 `plan.checkin_days += 1` / `plan.saved_amount += 金额`，
+    前端按钮没有任何防重，连点两次就把天数和金额都翻倍了。
+    现在明细写 checkins 表（一人一天一条），budget_plans 上的累计值由明细重算。
+    """
+    from datetime import date as _date
+    from app.models.checkin import Checkin
+
+    if req.saved_amount < 0:
+        raise HTTPException(400, "省钱金额不能是负数")
+    if req.saved_amount > MAX_LIMIT:
+        raise HTTPException(400, "省钱金额数值太大")
+
+    today = _date.today()
+    month = today.strftime("%Y-%m")
     plan = db.query(BudgetPlan).filter(
         BudgetPlan.user_id == current_user.id,
         BudgetPlan.month == month,
@@ -121,14 +134,64 @@ def do_checkin(
         db.commit()
         db.refresh(plan)
 
-    plan.saved_amount += req.saved_amount
-    plan.last_checkin_date = datetime.now()
-    plan.checkin_days += 1
-    current_user.total_saved += req.saved_amount
+    before_total = float(plan.saved_amount or 0)
+    row = db.query(Checkin).filter(
+        Checkin.user_id == current_user.id, Checkin.day == today).first()
+    if row:
+        row.saved_amount = round(float(req.saved_amount), 2)
+        row.note = (req.note or "")[:120]
+        repeated = True
+    else:
+        db.add(Checkin(user_id=current_user.id, day=today,
+                       saved_amount=round(float(req.saved_amount), 2),
+                       note=(req.note or "")[:120]))
+        repeated = False
     db.commit()
+
+    # 用明细重算累计，避免 += 带来的重复累加和漂移
+    total, days = db.query(func.coalesce(func.sum(Checkin.saved_amount), 0), func.count(Checkin.id)) \
+        .filter(Checkin.user_id == current_user.id,
+                func.date_format(Checkin.day, "%Y-%m") == month).first()
+    plan.saved_amount = round(float(total or 0), 2)
+    plan.checkin_days = int(days or 0)
+    plan.last_checkin_date = datetime.now()
+    # 用户总节省跟着本次增量走，而不是再加一遍
+    delta = plan.saved_amount - before_total
+    current_user.total_saved = max(0.0, round(float(current_user.total_saved or 0) + delta, 2))
+    db.commit()
+
     return success({
         "saved_amount": plan.saved_amount,
         "target_amount": plan.target_amount,
         "checkin_days": plan.checkin_days,
         "progress": round(plan.saved_amount / plan.target_amount * 100, 1) if plan.target_amount > 0 else 0,
+        "repeated": repeated,
+        "today_saved": round(float(req.saved_amount), 2),
+    }, "今天已经打过卡了，已按你新填的金额更新" if repeated else "打卡成功")
+
+
+@router.get("/month")
+def month_checkins(
+    month: str = "",
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """某月的打卡明细，给账单页的「打卡日历」用。"""
+    from datetime import date as _date
+    from app.models.checkin import Checkin
+    month = (month or "").strip() or _date.today().strftime("%Y-%m")
+    rows = (db.query(Checkin).filter(
+            Checkin.user_id == current_user.id,
+            func.date_format(Checkin.day, "%Y-%m") == month)
+            .order_by(Checkin.day).all())
+    days = [{"day": r.day.day, "saved_amount": round(float(r.saved_amount or 0), 2),
+             "note": r.note or ""} for r in rows]
+    return success({
+        "month": month,
+        "days": days,
+        "count": len(days),
+        "total": round(sum(d["saved_amount"] for d in days), 2),
+        "today": _date.today().day if _date.today().strftime("%Y-%m") == month else None,
+        "checked_today": any(d["day"] == _date.today().day
+                             for d in days) if _date.today().strftime("%Y-%m") == month else False,
     })
