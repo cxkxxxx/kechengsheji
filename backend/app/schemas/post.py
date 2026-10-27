@@ -31,6 +31,9 @@ class PostResponse(BaseModel):
     likes: int
     comments_count: int
     created_at: datetime
+    # 作者信息：列表页 join User 带出来，单独 model_validate(Post) 时为空串
+    author: str = ""
+    author_avatar: str = ""
 
     class Config:
         from_attributes = True

@@ -316,6 +316,86 @@ def admin_post_delete(pid: int, _=Depends(get_current_admin), db: Session = Depe
     return success(True, "已删除")
 
 
+# ---------- AI 审核辅助（只给管理员参考，最终决定权在管理员） ----------
+import json as _json
+from app.models.ai_assist import AIReview
+from app.agent.llm import call_llm_simple, LLMError, friendly_error
+from app.agent.json_out import extract_json, AIOutputError, _clean_str, _clean_list_str
+from app.agent import prompts as ai_prompts
+
+
+class AIReviewIn(BaseModel):
+    target_type: str        # article / post
+    target_id: int
+
+
+def _run_ai_review(target_type: str, target_id: int, admin_id: int, db: Session):
+    """对待审核内容跑一次 AI 风险/质量分析并落库。AI 意见仅供参考。"""
+    if target_type == "article":
+        row = db.query(Article).filter(Article.id == target_id).first()
+        title, content = (row.title, row.content) if row else ("", "")
+    elif target_type == "post":
+        row = db.query(Post).filter(Post.id == target_id).first()
+        title, content = (row.title, row.content) if row else ("", "")
+    else:
+        return error("target_type 只能是 article / post", 400)
+    if not row:
+        return error("内容不存在", 404)
+
+    filled = ai_prompts.REVIEW_USER.format(
+        kind="攻略投稿" if target_type == "article" else "社区帖子",
+        title=_clean_str(title, 200), content=(content or "")[:8000])
+    try:
+        raw = call_llm_simple(filled, ai_prompts.REVIEW_SYSTEM)
+        data = extract_json(raw)
+    except AIOutputError as e:
+        return error(e.brief, 502)
+    except LLMError as e:
+        return error(e.brief, 502)
+    except Exception as e:
+        return error(friendly_error(e), 502)
+
+    result = {
+        "risk_tags": _clean_list_str(data.get("risk_tags"), 6, 30),
+        "spam": bool(data.get("spam")),
+        "privacy_risk": bool(data.get("privacy_risk")),
+        "quality_advice": _clean_str(data.get("quality_advice"), 500),
+        "needs_human": bool(data.get("needs_human")),
+        # 模型不给 reason 就如实标「模型未给理由」，不编一个补上
+        "reason": _clean_str(data.get("reason"), 500) or "模型未给出理由",
+        "title": title,
+    }
+    rec = AIReview(target_type=target_type, target_id=target_id,
+                   result_json=_json.dumps(result, ensure_ascii=False),
+                   model="glm-4-flash", admin_id=admin_id)
+    db.add(rec)
+    db.commit()
+    return success({"id": rec.id, "result": result,
+                    "created_at": str(rec.created_at)[:19] if rec.created_at else ""})
+
+
+@router.post("/admin/api/ai-review")
+def admin_ai_review(payload: AIReviewIn, admin=Depends(get_current_admin), db: Session = Depends(get_db)):
+    return _run_ai_review(payload.target_type, payload.target_id, admin.id, db)
+
+
+@router.get("/admin/api/ai-review")
+def admin_ai_review_get(target_type: str, target_id: int,
+                        admin=Depends(get_current_admin), db: Session = Depends(get_db)):
+    """查某条内容最近一次的 AI 审核记录（不重新调用模型）。"""
+    rec = (db.query(AIReview)
+           .filter(AIReview.target_type == target_type, AIReview.target_id == target_id)
+           .order_by(AIReview.id.desc()).first())
+    if not rec:
+        return success(None, "还没有 AI 分析记录")
+    try:
+        result = _json.loads(rec.result_json or "{}")
+    except _json.JSONDecodeError:
+        result = {}
+    return success({"id": rec.id, "result": result,
+                    "created_at": str(rec.created_at)[:19] if rec.created_at else ""})
+
+
 # ---------- 评论管理 ----------
 @router.get("/admin/api/comments")
 def admin_comments(q: str = "", skip: int = 0, limit: int = 50,

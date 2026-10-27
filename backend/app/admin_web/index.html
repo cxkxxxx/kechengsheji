@@ -181,6 +181,17 @@
 </div>
 
 <!-- 文章编辑弹窗 -->
+<div class="mask" id="aiReviewModal" style="display:none">
+  <div class="modal">
+    <h3 id="aiReviewTitle">AI 审核辅助</h3>
+    <div id="aiReviewBody" style="line-height:1.8;font-size:14px"></div>
+    <p style="color:#999;font-size:12px;margin-top:12px">AI 分析仅供参考，最终审核决定权在管理员；AI 不会自动封禁或驳回任何内容。</p>
+    <div class="row" style="justify-content:flex-end;margin-top:8px">
+      <button class="btn ghost" onclick="document.getElementById('aiReviewModal').style.display='none'">关闭</button>
+    </div>
+  </div>
+</div>
+
 <div class="mask" id="articleModal">
   <div class="modal">
     <h3 id="articleModalTitle">新增文章</h3>
@@ -219,7 +230,7 @@ async function api(path, method, body) {
   var res = await fetch('/admin/api' + path, opt);
   if (res.status === 401) { doLogout(); throw new Error('登录已过期'); }
   var j = await res.json().catch(function(){ return {}; });
-  if (j.code !== 200) throw new Error(j.message || '请求失败');
+  if (j.code !== 200) throw new Error(j.message || j.detail || '请求失败');
   return j.data;
 }
 
@@ -392,6 +403,7 @@ function loadArticles() {
 function articleActions(a) {
   return '<button class="btn small ghost" onclick="setArticleStatus('+a.id+',\'approved\')">通过</button> '
     + '<button class="btn small ghost" onclick="setArticleStatus('+a.id+',\'rejected\')">驳回</button> '
+    + '<button class="btn small ghost" onclick="runAIReview(\'article\','+a.id+')">AI 审查</button> '
     + '<button class="btn small ghost" onclick="editArticle('+a.id+')">编辑</button> '
     + '<button class="btn small danger" onclick="delArticle('+a.id+')">删除</button>';
 }
@@ -462,8 +474,30 @@ function loadPosts() {
   }).catch(function(e){ alert(e.message); });
 }
 function statusActions(p) {
-  var b = '<button class="btn small ghost" onclick="setPostStatus('+p.id+',\'approved\')">通过</button> <button class="btn small ghost" onclick="setPostStatus('+p.id+',\'rejected\')">驳回</button> <button class="btn small danger" onclick="delPost('+p.id+')">删除</button>';
+  var b = '<button class="btn small ghost" onclick="setPostStatus('+p.id+',\'approved\')">通过</button> <button class="btn small ghost" onclick="setPostStatus('+p.id+',\'rejected\')">驳回</button> <button class="btn small ghost" onclick="runAIReview(\'post\','+p.id+')">AI 审查</button> <button class="btn small danger" onclick="delPost('+p.id+')">删除</button>';
   return b;
+}
+
+/* ---- AI 审核辅助：只出参考意见，通过/驳回仍由管理员手动点 ---- */
+function runAIReview(type, id) {
+  var btnTitle = type === 'article' ? '攻略投稿 #' + id : '社区帖子 #' + id;
+  document.getElementById('aiReviewTitle').textContent = 'AI 审核辅助 · ' + btnTitle;
+  document.getElementById('aiReviewBody').innerHTML = '<p style="color:#888">AI 正在分析内容…</p>';
+  document.getElementById('aiReviewModal').style.display = 'flex';
+  api('/ai-review', 'POST', { target_type: type, target_id: id }).then(function(d){
+    var r = d.result || {};
+    var tags = (r.risk_tags || []);
+    var html = '';
+    if (r.needs_human) html += '<p style="color:#c47b00;background:#fff7e6;padding:8px 10px;border-radius:6px"><b>⚠ AI 把握不足，建议人工复核</b></p>';
+    html += '<p><b>风险标签：</b>' + (tags.length ? tags.map(function(t){return '<span class="badge red" style="margin-right:6px">'+esc(t)+'</span>';}).join('') : '<span style="color:#2e9e6b">未发现明显风险</span>') + '</p>';
+    html += '<p><b>垃圾信息：</b>' + (r.spam ? '疑似' : '否') + '　<b>隐私泄露风险：</b>' + (r.privacy_risk ? '有' : '未发现') + '</p>';
+    html += '<p><b>质量建议：</b>' + esc(r.quality_advice || '') + '</p>';
+    html += '<p><b>判断依据：</b>' + esc(r.reason || '') + '</p>';
+    html += '<p style="color:#999;font-size:12px">分析时间：' + esc(d.created_at || '') + '</p>';
+    document.getElementById('aiReviewBody').innerHTML = html;
+  }).catch(function(e){
+    document.getElementById('aiReviewBody').innerHTML = '<p style="color:#c0392b">分析失败：' + esc(e.message) + '</p>';
+  });
 }
 function setPostStatus(id, status) {
   api('/posts/' + id + '/status', 'PATCH', { status: status }).then(function(){ loadPosts(); }).catch(function(e){ alert(e.message); });

@@ -83,6 +83,20 @@ def submit_article(payload: ArticleCreate, db: Session = Depends(get_db),
                 images=images, author=(current_user.nickname or "用户")[:50],
                 user_id=current_user.id, status="pending")
     db.add(a)
+    db.flush()  # 先拿 id，回填 AI 创作记录要用
+
+    # AI 创作助手来源回填：只认自己的创作记录，别人的 creation_id 直接忽略
+    # （不做归属校验就等于能用一个 id 把别人的草稿标记成已发布）
+    if payload.creation_id:
+        from app.models.ai_assist import AICreation
+        cre = (db.query(AICreation)
+               .filter(AICreation.id == payload.creation_id,
+                       AICreation.user_id == current_user.id,
+                       AICreation.scene == "article").first())
+        if cre and not cre.article_id:
+            # 已关联过其他攻略的记录不重复挂，避免二次提交覆盖原关联
+            cre.article_id = a.id
+            db.add(cre)
     db.commit()
     return success({"id": a.id, "status": a.status},
                    "已提交，管理员审核通过后就会出现在攻略列表")

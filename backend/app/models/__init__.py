@@ -11,5 +11,6 @@ from app.models.coupon_activity import CouponActivity
 from app.models.price_history import PriceHistory
 from app.models.post_like import PostLike
 from app.models.checkin import Checkin
+from app.models.ai_assist import AICreation, AIBillReport, AIExecPlan, AIReview
 from app.core.database import Base
 from app.models.admin import Admin

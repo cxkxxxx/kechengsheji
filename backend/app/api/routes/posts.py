@@ -17,9 +17,19 @@ router = APIRouter()
 
 @router.get("")
 def get_posts(skip: int = 0, limit: int = 20, db: Session = Depends(get_db)):
-    items = db.query(Post).filter(Post.status == "approved") \
-        .order_by(Post.created_at.desc()).offset(skip).limit(limit).all()
-    return success([PostResponse.model_validate(p) for p in items])
+    # 内容流只放行已过审的帖子；作者昵称/头像一并 join 带出来，
+    # 参考成熟社区的做法——卡片第一行是「谁在什么时候发的」
+    rows = (db.query(Post, User.nickname, User.avatar)
+            .outerjoin(User, Post.user_id == User.id)
+            .filter(Post.status == "approved")
+            .order_by(Post.created_at.desc()).offset(skip).limit(limit).all())
+    items = []
+    for p, nickname, avatar in rows:
+        m = PostResponse.model_validate(p).model_dump()
+        m["author"] = (nickname or "").strip() or "省钱用户"
+        m["author_avatar"] = avatar or ""
+        items.append(m)
+    return success(items)
 
 @router.get("/mine")
 def my_posts(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -60,10 +70,16 @@ def create_post(
 
 @router.get("/{post_id}")
 def get_post(post_id: int, db: Session = Depends(get_db)):
-    post = db.query(Post).filter(Post.id == post_id, Post.status == "approved").first()
-    if not post:
+    row = (db.query(Post, User.nickname, User.avatar)
+           .outerjoin(User, Post.user_id == User.id)
+           .filter(Post.id == post_id, Post.status == "approved").first())
+    if not row:
         return success(None, "帖子不存在")
-    return success(PostResponse.model_validate(post))
+    p, nickname, avatar = row
+    m = PostResponse.model_validate(p).model_dump()
+    m["author"] = (nickname or "").strip() or "省钱用户"
+    m["author_avatar"] = avatar or ""
+    return success(m)
 
 @router.post("/{post_id}/like")
 def like_post(

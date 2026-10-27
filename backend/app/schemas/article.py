@@ -12,6 +12,9 @@ class ArticleCreate(BaseModel):
     category: str = "综合"
     cover: str = ""
     images: List[str] = []
+    # 可选：这稿子如果来自 AI 创作助手，带上 creation_id，发布成功后回填
+    # ai_creations.article_id，历史里就能区分「未发布草稿 / 已发布攻略」
+    creation_id: Optional[int] = None
 
     @field_validator("title")
     @classmethod
