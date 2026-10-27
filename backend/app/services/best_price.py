@@ -33,17 +33,48 @@ _URL = re.compile(r"https?://\S+")
 _NOISE_PHRASE = re.compile(r"点击链接\S{0,6}|直接打开|或者\S{0,6}搜索|复制(此|这)?(条|段)?\S{0,8}|打开\S{0,4}(App|app|客户端)")
 _SEP = re.compile(r"[\s/、,，。()（）\-+·&*「」『』]+")
 
-# 周边配件：命中就不当成商品本体（就是它把 ¥16.6 收纳包端给我们的那类东西）
+# 周边配件：命中就不当成商品本体（就是它把 ¥16.6 收纳包端给我们的那类东西）。
+# 「手机壳」必须在这：实测「苹果18pro」搜回来 3 条全是手机壳，旧词表里有「保护壳」
+# 「硅胶套」「皮套」偏偏漏了最常见的「手机壳」，¥25.3 的壳就顶到了最低价。
 _ACCESSORY = ("钢化膜", "贴膜", "屏幕膜", "保护膜", "秒贴", "保护壳", "防水壳", "兔笼", "支架", "手持杆",
               "延长杆", "车把夹", "胸带", "头带", "背带", "挂绳", "收纳包", "收纳袋", "配件", "合集",
               "滤镜", "电池", "充电器", "充电头", "数据线", "底座", "遥控器", "镜头盖", "转接头",
-              "清洁", "贴纸", "皮套", "硅胶套", "包袋", "保护套")
+              "清洁", "贴纸", "皮套", "硅胶套", "包袋", "保护套",
+              "手机壳", "手机膜", "手机套", "手机链", "手机绳", "手机贴", "防摔壳", "磁吸壳",
+              "液态硅胶", "凯夫拉", "指环扣", "背夹", "挂件", "镜头膜")
 
 # 上游最坏会 15 秒 × 多组关键词 × 两个平台串起来重试，用户只能盯着「正在思考」，
 # 所以压低到和 PRICE_TIMEOUT 一致。
 _CONNECT_TIMEOUT = max(3.0, min(float(PRICE_TIMEOUT), 15.0))
 
 _MODEL_TOKEN = re.compile(r"[a-z]{2,}\d+[a-z]?|\d{2,}")
+# 型号段：数字前后的字母算同一段（18pro / acepro2 / p60）。
+# 段后不能再跟字母，否则就是另一个型号：18pro 命中 18pro256g，不命中 18promax。
+_MODEL_RUN = re.compile(r"[a-z]*\d+[a-z]*")
+
+
+def _hit_token(t: str, tok: str) -> bool:
+    """tok 在 t 里出现，且出现位置后面不紧跟小写字母（中文/数字/结尾都算命中）。"""
+    i = t.find(tok)
+    while i != -1:
+        j = i + len(tok)
+        if j >= len(t) or not ("a" <= t[j] <= "z"):
+            return True
+        i = t.find(tok, j)
+    return False
+
+
+def _model_run_ok(title: str, kw: str) -> bool:
+    """关键词里的型号段必须原样出现在标题里，且不被加长成别的型号。
+
+    实测「苹果18pro手机」把 ¥10999 的 18ProMax 当结果返回：包自带的
+    _model_number_matches 只看数字「18」，Pro/Max 串台它不管，所以这里自己再卡一道。
+    """
+    q, t = _norm(_clean(kw)), _norm(title)
+    runs = [r for r in _MODEL_RUN.findall(q) if r]
+    if not runs:
+        return True
+    return all(_hit_token(t, r) for r in runs)
 # 相关性：整批都低于这个分就当没匹配到。实测真·小米15 = 1.00，堆了「小米手机」关键词的
 # Redmi Note 15 = 0.50，所以不能只看绝对门槛（用户就是来比一张 ¥0.50 档位的钢化膜时
 # 固定门槛会把正确答案也滤掉），改成「与最高分相差 REL_BAND 以内才算同一档」。
@@ -91,6 +122,19 @@ def _candidates(keyword: str) -> list:
     return out[:2]
 
 
+def _alias_candidates(keyword: str) -> list:
+    """中文苹果型号的最后兜底：实测「苹果18pro」在上游只召回手机壳（真机标题都写
+    iPhone），换成 iphone 写法就能搜到整机。排在原有候选之后，前面查到本体就
+    不会走到这里，不多花共享配额。"""
+    s = _clean(keyword or "")
+    m = re.match(r"^苹果\s*(\d+)(.*)$", s)
+    if not m:
+        return []
+    rest = m.group(2).strip()
+    alias = "iphone %s%s" % (m.group(1), (" " + rest) if rest else "")
+    return [alias] if alias not in _candidates(keyword) else []
+
+
 def _search_one(platform: str, kw: str) -> tuple:
     """调上游拿整条候选列表。返回 (items, 原始报错文案)。"""
     import best_price_mcp
@@ -131,7 +175,7 @@ def _is_accessory(title: str) -> bool:
 
 
 def _matches(title: str, kw: str) -> bool:
-    """标题是不是真的在说这个商品。
+    """标题是不是真的在说这个商品（包的打分取不到时的兜底）。
 
     带型号时必须同时命中型号 token 和关键词里的中文词——只卡数字会串台：
     实测「小米15 手机」光匹配 "15" 会把 Redmi Note 15 当成结果推出去。
@@ -139,12 +183,12 @@ def _matches(title: str, kw: str) -> bool:
     q, t = _norm(_clean(kw)), _norm(title)
     if not q or not t:
         return False
-    if q in t or t in q:
+    if _hit_token(t, q) or t in q:
         return True
     tokens = _MODEL_TOKEN.findall(q)
     if tokens:
         words = re.findall(r"[一-鿿]{2,}", q)
-        return all(tok in t for tok in tokens) and all(w in t for w in words)
+        return all(_hit_token(t, tok) for tok in tokens) and all(w in t for w in words)
     return len(q) >= 4      # 没有型号信息时（如「空气炸锅」）按字面宽松匹配
 
 
@@ -187,7 +231,7 @@ def _pick(items: list, kw: str) -> tuple:
             rest.append(raw)
             continue
         rel = _relevance(title, kw)
-        if not _model_ok(title, kw) or rel < MIN_RELEVANCE:
+        if not _model_ok(title, kw) or not _model_run_ok(title, kw) or rel < MIN_RELEVANCE:
             rest.append(raw)
             continue
         price = _num((raw or {}).get("final_price")) or _num((raw or {}).get("price")) or 10 ** 9
@@ -248,7 +292,7 @@ def search(keyword: str, limit: int = 6) -> tuple:
     platforms = ("jd", "taobao")
     # 串行时两个平台的超时是相加的，京东被限流卡满 8 秒时天猫也得排队；并发后取最大值
     with ThreadPoolExecutor(max_workers=len(platforms), thread_name_prefix="price") as ex:
-        for kw in _candidates(keyword):
+        for kw in _candidates(keyword) + _alias_candidates(keyword):
             for platform, rows, err in _gather(ex, platforms, kw):
                 if err:
                     warnings.append("%s接口：%s" % (PLATFORM_NAMES[platform], err))
@@ -265,12 +309,13 @@ def search(keyword: str, limit: int = 6) -> tuple:
             if items:
                 break                        # 有结果就别再打第二个关键词，省共享配额
     if not items:
-        cands = _candidates(keyword)
+        cands = _candidates(keyword) + _alias_candidates(keyword)
         uniq = []
         for w in warnings + notes:
             if w and w not in uniq:
                 uniq.append(w)
         miss = "；".join(uniq) or "两个平台都没有返回这个商品"
-        return [], [miss + "（实际用于搜索的词：%s）" % (cands[0] or keyword)[:30]]
+        tried = "、".join(cands) or keyword
+        return [], [miss + "（实际用于搜索的词：%s）" % tried[:60]]
     items.sort(key=lambda x: x.get("final_price") or 10 ** 9)
     return items[:max(1, int(limit))], sorted(set(warnings + notes) - {""})

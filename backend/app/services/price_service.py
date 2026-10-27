@@ -13,16 +13,29 @@ from app.services.link_resolver import resolve
 from app.models.price_history import PriceHistory
 
 
-def _priced_links(items: list) -> list:
-    """只有带到手价的商品链接才值得做成卡片，按价格从低到高排。"""
+def _priced_links(items: list, product: str = "") -> list:
+    """只有带到手价的商品链接才值得做成卡片，按价格从低到高排。
+
+    每张卡片自带说明所需的全部字段：
+    - source/recorded_at：价格来源 + 更新时间，实时价和站内旧记录要分得清；
+    - desc：商品页标题（截断），比「平台·店铺」更能确认是同一款；
+    - cut：相对标价/券后省了多少（无优惠为 0）。
+    """
     out = []
     for it in items:
         price = it.get("final_price")
         if not (price and it.get("url")):
             continue
+        was = float(it.get("price") or 0)
+        cut = round(was - float(price), 2) if was > float(price) else round(float(it.get("coupon_amount") or 0), 2)
         out.append({"platform": it["platform"],
                     "label": "%s·%s" % (it["platform"], it.get("shop") or "商品页"),
-                    "url": it["url"], "kind": "product", "price": price})
+                    "url": it["url"], "kind": "product", "price": price,
+                    "product": product,
+                    "desc": (it.get("title") or "")[:40],
+                    "cut": cut if cut > 0 else 0,
+                    "source": "站内记录" if it.get("source") == "站内库" else "实时查询",
+                    "recorded_at": it.get("recorded_at") or ""})
     return out
 
 
@@ -80,7 +93,7 @@ def compare(keyword: str = "", link: str = "", budget=None, db=None, limit: int 
                 "hist_low": None, "budget": None,
                 "warnings": ["没拿到商品名，不要对贵贱下结论；请让用户复制商品标题发过来"]}
 
-    links = _priced_links(items)
+    links = _priced_links(items, kw)
 
     lowest = items[0] if items and items[0].get("final_price") else None
     hist_low = min([i["hist_low"] for i in local if i.get("hist_low")], default=None)

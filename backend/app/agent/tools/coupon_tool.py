@@ -40,35 +40,6 @@ def coupon_advice(max_items: int = 5, user_id: int = 0, db=None, **kwargs):
                       [make_table("现在最值得薅的羊毛", ["平台", "活动", "截止", "可信度"], table_rows)])
 
 
-def _price_table(res: dict) -> dict:
-    """比价结果表：手机端放得下四列，商品名进标题而不是每行重复。"""
-    items = res["items"][:6]
-    rows = []
-    for it in items:
-        final = it.get("final_price") or 0
-        was = it.get("price") or 0
-        cut = round(was - final, 2) if was > final else (it.get("coupon_amount") or 0)
-        rows.append([
-            it["platform"],
-            "¥%.2f" % final,
-            ("省 %.2f" % cut) if cut else "—",
-            (it.get("shop") or ("站内记录" if it.get("source") == "站内库" else "—"))[:12],
-        ])
-    low = res["lowest"]
-    note = []
-    if low:
-        note.append("最低：%s ¥%.2f" % (low["platform"], low["final_price"]))
-    if res["spread"]:
-        note.append("最高最低差 ¥%.2f" % res["spread"])
-    if res["budget"] and low:
-        gap = res["budget"] - low["final_price"]
-        note.append(("预算内，余 ¥%.2f" % gap) if gap >= 0 else ("超预算 ¥%.2f" % -gap))
-    return make_table(
-        "比价：%s" % (res["keyword"] or "该商品"),
-        ["平台", "到手价", "优惠", "店铺"], rows,
-        "｜".join(note) + ("" if res["live"] else "｜价格为站内记录，非实时"))
-
-
 @register_tool(
     name="price_compare",
     description=("比价：把商品名拿去京东/天猫查实时到手价，返回店铺、券、可跳转购买链接。"
@@ -151,12 +122,18 @@ def price_compare(product: str = "", link: str = "", budget=None,
         L.append("")
         L.append("数据缺口：" + "；".join(warnings))
     L.append("")
-    L.append("比价表格已经由界面直接渲染给用户了，正文里不要再逐条复述一遍数字。"
+    L.append("比价结果已用商品卡片展示给用户（平台、商品描述、到手价、价差、来源都在卡片上），"
+             "正文里不要再逐条复述数字。"
              "请按三步回答用户：1) 比的是什么商品；2) 哪个平台哪个店铺更便宜、便宜多少（"
              "只引用上面出现过的数字，一条都不许自己加）；3) 为什么选它（到手价、券、店铺、"
              "是否接近历史低价、是否在预算内）。"
              "特别注意：上面没有「站内记录的历史最低价」这一行时，绝对不要提历史低价、"
              "最近最低、降价时机这类话，那是没有的数据（实测模型会自己补这句）。"
+             "res 没拿到实时价（正文里有「价格全部来自站内记录」那行）时，"
+             "禁止说「最低」「最便宜」，改说「站内记录显示 X 平台最近一次价格较低」，"
+             "并提醒用户价格可能已过期。"
              "有数据缺口的要如实说明，比如京东今天查不到就讲清楚只有天猫。"
              "购买入口已经用卡片展示，正文不要贴网址、不要用 [文字](链接) 的 Markdown 语法。")
-    return ToolResult("\n".join(L), links, [_price_table(res)])
+    # 拥挤的四列表格改成商品卡片后不再下发（卡片带 desc/cut/source/recorded_at），
+    # 数字对比仍在上面的文字清单里，模型引用不受影响
+    return ToolResult("\n".join(L), links)
