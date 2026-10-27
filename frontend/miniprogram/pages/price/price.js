@@ -19,9 +19,14 @@ Page({
     history: []
   },
 
-  onLoad() {
+  onLoad(options) {
     // 上次搜过的商品，省得反复打字
     this.setData({ history: wx.getStorageSync('price_history') || [] })
+    // 执行计划/其它页面带关键词跳进来时直接搜
+    if (options && options.q) {
+      this.setData({ kw: decodeURIComponent(options.q) })
+      this.search()
+    }
   },
 
   onInput(e) { this.setData({ kw: e.detail.value }) },

@@ -18,6 +18,24 @@
     </view>
   </view>
 
+  <!-- 快捷入口：省钱工具的高频三件事，点一下就到，不用去「我的」里翻 -->
+  <view class="quick-entries">
+    <view class="qe-grid">
+      <view class="qe-item" bindtap="goPrice">
+        <view class="qe-ic"><view class="ic ic-link"></view></view>
+        <text class="qe-name">商品比价</text>
+      </view>
+      <view class="qe-item" bindtap="goAsk">
+        <view class="qe-ic"><view class="ic ic-spark"></view></view>
+        <text class="qe-name">问 AI 优惠</text>
+      </view>
+      <view class="qe-item" bindtap="goBill">
+        <view class="qe-ic"><view class="ic ic-wallet"></view></view>
+        <text class="qe-name">账单分析</text>
+      </view>
+    </view>
+  </view>
+
   <scroll-view scroll-x class="tabs" enhanced show-scrollbar="{{false}}">
     <view wx:for="{{categories}}" wx:key="*this"
           class="tab {{currentCategory === item ? 'active' : ''}}"
@@ -55,7 +73,7 @@
         </view>
         <view class="article-info">
           <text class="article-title ellipsis-2">{{item.title}}</text>
-          <text class="article-summary ellipsis-2">{{item.content}}</text>
+          <text class="article-summary ellipsis">{{item.content}}</text>
           <view class="article-bottom">
             <view class="article-author">
               <text class="ic ic-user ic-xs"></text>

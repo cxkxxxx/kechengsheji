@@ -1,49 +1,161 @@
-<!-- AI助手页：两位专家对话（流式 + 图片 + 表格 + 账单联动） -->
+<!-- AI助手页：按参考图还原 —— 标题 → AI欢迎卡 → 模式切换 → 常用功能 → 你可以这样问 → 对话 → 输入条 -->
 <view class="page">
-  <!-- 专家切换：只剩两位，用分段控件比滚动 chip 更像「切换」 -->
-  <view class="agent-bar">
-    <view class="segment">
-      <view class="segment-item {{currentAgent === item.key ? 'active' : ''}}"
+
+  <!-- 标题：自定义导航栏（右上角胶囊位置已避开） -->
+  <view class="page-head"
+        style="height:{{headTotal}}px;padding-top:{{statusBarHeight}}px;padding-right:{{headRight}}px;">
+    <text class="page-title">AI省钱助手</text>
+  </view>
+
+  <!-- 聊天态顶部条：紧凑模式切换 + 清空对话（有对话才出现） -->
+  <view class="top-bar" wx:if="{{messages.length > 0}}">
+    <view class="mode-mini">
+      <view class="mode-mini-item {{currentAgent === item.key ? 'on' : ''}}"
             wx:for="{{agents}}" wx:key="key"
             bindtap="switchAgent" data-key="{{item.key}}">
-        <text class="agent-emoji">{{item.emoji}}</text>
-        <text class="agent-name">{{item.name}}</text>
+        <text class="ic ic-sm {{item.icon}} {{currentAgent === item.key ? 'ic-light' : ''}}"></text>
+        <text class="mode-mini-txt">{{item.mode}}</text>
       </view>
     </view>
-    <view class="agent-clear" bindtap="clearChat"><text class="ic ic-trash ic-sm"></text></view>
-  </view>
-  <!-- 能力入口条：把「这个专家会什么」摊在首屏，点一下直接发对应问法。
-       每一项都对应后端一个真实注册的工具，不是摆样子的空按钮。 -->
-  <scroll-view class="cap-bar" scroll-x enable-flex show-scrollbar="{{false}}">
-    <view class="cap {{sending ? 'cap-dim' : ''}}" wx:for="{{caps}}" wx:key="name"
-          bindtap="askCap" data-i="{{index}}">
-      <text class="ic ic-sm {{item.ic}}"></text>
-      <text class="cap-name">{{item.name}}</text>
+    <view class="agent-clear" bindtap="clearChat">
+      <text class="ic ic-trash ic-sm"></text>
     </view>
-  </scroll-view>
+  </view>
 
-  <!-- 对话区 -->
-  <scroll-view scroll-y class="chat-list" scroll-into-view="{{scrollToId}}" scroll-with-animation>
-    <!-- 开场引导 -->
-    <view class="welcome" wx:if="{{messages.length === 0}}">
-      <view class="welcome-symbol"><text class="ic ic-spark"></text></view>
-      <text class="welcome-title">{{currentAgent === 'coupon' ? '优惠情报员' : '理财管家'}}</text>
-      <text class="welcome-desc">{{currentAgent === 'coupon' ? '复制商品标题或整段分享文案发我，我去比京东和天猫的到手价' : '直接说消费就能记账，比如「昨晚外卖 18 块」，也能让我分析本月账单'}}</text>
-      <view class="welcome-qs">
-        <view class="welcome-q" wx:for="{{quickQuestions}}" wx:key="*this"
+  <scroll-view scroll-y class="chat-list" scroll-into-view="{{scrollToId}}" scroll-with-animation
+               enhanced show-scrollbar="{{false}}">
+
+    <!-- 初始态：AI 欢迎卡 → 模式切换 → 常用功能 → 你可以这样问（聊天后整块收起） -->
+    <view class="home" id="home-top" wx:if="{{messages.length === 0}}">
+      <view class="ai-card">
+        <view class="ai-card-ic"><text class="ic ic-robot"></text></view>
+        <view class="ai-card-txt">
+          <text class="ai-card-hi">{{welcomeHi}}</text>
+          <text class="ai-card-role">{{welcomeRole}}</text>
+          <text class="ai-card-desc">{{welcomeDesc}}</text>
+        </view>
+      </view>
+
+      <view class="mode-bar">
+        <view class="mode-item {{currentAgent === item.key ? 'on' : ''}}"
+              wx:for="{{agents}}" wx:key="key"
+              bindtap="switchAgent" data-key="{{item.key}}">
+          <text class="ic ic-sm {{item.icon}} {{currentAgent === item.key ? 'ic-light' : ''}}"></text>
+          <text class="mode-txt">{{item.mode}}</text>
+        </view>
+      </view>
+
+      <view class="sec-row"><text class="sec-title">常用功能</text></view>
+      <view class="feature-grid">
+        <view class="feature-card" wx:for="{{welcomeCards}}" wx:key="name"
+              bindtap="askCap" data-i="{{item.capIndex}}">
+          <view class="feature-ic"><text class="ic {{item.ic}}"></text></view>
+          <view class="feature-txt">
+            <text class="feature-name">{{item.name}}</text>
+            <text class="feature-desc">{{item.desc}}</text>
+          </view>
+          <text class="ic ic-arrow feature-arrow"></text>
+        </view>
+      </view>
+
+      <view class="sec-row">
+        <text class="sec-title">你可以这样问</text>
+        <view class="sec-act" catchtap="rotateQuestions"><text class="sec-act-txt">换一批</text></view>
+      </view>
+      <view class="ask-tags">
+        <view class="ask-tag" wx:for="{{welcomeQuestions}}" wx:key="*this"
               bindtap="askQuick" data-q="{{item}}">{{item}}</view>
       </view>
     </view>
 
+    <!-- 消息列表：用户浅蓝靠右带人形标识，AI 带 AI 标识靠左；状态见 bubble 分支 -->
     <view wx:for="{{messages}}" wx:key="id"
           id="msg-{{item.id}}"
           class="chat-item {{item.role === 'user' ? 'right' : 'left'}}">
-      <view class="avatar" wx:if="{{item.role !== 'user'}}">
-        <text class="avatar-mark">{{currentAgent === 'coupon' ? '惠' : '账'}}</text>
+      <view class="avatar ai-avatar" wx:if="{{item.role !== 'user'}}">
+        <text class="avatar-ai">AI</text>
       </view>
       <view class="msg-col">
         <image wx:if="{{item.image}}" src="{{item.image}}" mode="aspectFill" class="msg-img" />
-        <!-- 表格：数字对比由后端算好，直接渲染，正文只留结论 -->
+
+        <!-- 用户消息 -->
+        <view class="bubble user-bubble" wx:if="{{item.role === 'user' && item.content}}">
+          <text user-select>{{item.content}}</text>
+        </view>
+        <view class="bubble user-bubble user-img-only" wx:if="{{item.role === 'user' && !item.content}}">发了一张图片</view>
+
+        <!-- AI：状态机 -->
+        <block wx:if="{{item.role !== 'user'}}">
+          <!-- 等待（还没收到首块）/ 生成中但正文未到 -->
+          <view class="bubble ai-bubble is-thinking" wx:if="{{!item.content && (item.status === 'waiting' || item.status === 'streaming')}}">
+            <view class="thinking">
+              <view class="dot"></view><view class="dot"></view><view class="dot"></view>
+              <text class="thinking-text">正在查比价数据和你的账单…</text>
+            </view>
+          </view>
+
+          <!-- 正文：Markdown 渲染，页面上不出现 ### / ** 源标记 -->
+          <view class="bubble ai-bubble {{item.status === 'error' ? 'is-error' : ''}}" wx:if="{{item.content}}">
+            <view class="md">
+              <block wx:for="{{item.md}}" wx:for-item="blk" wx:key="i">
+                <view class="md-h md-h{{blk.level}}" wx:if="{{blk.type === 'h'}}">
+                  <text wx:for="{{blk.segs}}" wx:for-item="seg" wx:key="i"
+                        class="{{seg.b ? 'md-b' : ''}} {{seg.code ? 'md-code' : ''}}">{{seg.t}}</text>
+                </view>
+                <view class="md-p" wx:if="{{blk.type === 'p'}}">
+                  <text wx:for="{{blk.segs}}" wx:for-item="seg" wx:key="i"
+                        class="{{seg.b ? 'md-b' : ''}} {{seg.code ? 'md-code' : ''}}">{{seg.t}}</text>
+                </view>
+                <view class="md-quote" wx:if="{{blk.type === 'quote'}}">
+                  <text wx:for="{{blk.segs}}" wx:for-item="seg" wx:key="i"
+                        class="{{seg.b ? 'md-b' : ''}} {{seg.code ? 'md-code' : ''}}">{{seg.t}}</text>
+                </view>
+                <view class="md-ul" wx:if="{{blk.type === 'ul'}}">
+                  <view class="md-li" wx:for="{{blk.items}}" wx:for-item="li" wx:key="i">
+                    <text class="md-bullet">·</text>
+                    <view class="md-li-txt">
+                      <text wx:for="{{li.segs}}" wx:for-item="seg" wx:key="i"
+                            class="{{seg.b ? 'md-b' : ''}} {{seg.code ? 'md-code' : ''}}">{{seg.t}}</text>
+                    </view>
+                  </view>
+                </view>
+                <view class="md-ol" wx:if="{{blk.type === 'ol'}}">
+                  <view class="md-li" wx:for="{{blk.items}}" wx:for-item="li" wx:key="i">
+                    <text class="md-num">{{li.i}}.</text>
+                    <view class="md-li-txt">
+                      <text wx:for="{{li.segs}}" wx:for-item="seg" wx:key="i"
+                            class="{{seg.b ? 'md-b' : ''}} {{seg.code ? 'md-code' : ''}}">{{seg.t}}</text>
+                    </view>
+                  </view>
+                </view>
+                <view class="md-hr" wx:if="{{blk.type === 'hr'}}"></view>
+              </block>
+            </view>
+            <view class="gen-hint" wx:if="{{item.status === 'streaming'}}"><view class="dot dot-sm"></view><text>生成中</text></view>
+          </view>
+
+          <!-- 失败可重试 -->
+          <view class="retry-row" wx:if="{{item.status === 'error'}}" bindtap="retryLast">
+            <text class="ic ic-refresh ic-sm"></text><text class="retry-txt">重新提问</text>
+          </view>
+
+          <!-- 用户取消：保留已生成部分，如实标注，不算失败 -->
+          <view class="canceled-tag" wx:if="{{item.status === 'canceled'}}">已停止生成</view>
+
+          <!-- 无结果：如实说没有，给出口而不是装作回答过 -->
+          <view class="none-box" wx:if="{{item.status === 'empty'}}">
+            <text class="none-title">这次没有查到可用的结果</text>
+            <text class="none-sub">换个问法，或点上方常用功能再试一次</text>
+          </view>
+
+          <!-- 数据不完整：比价跑完但没有可比数据，结论不能冒充有依据 -->
+          <view class="none-box is-partial" wx:if="{{item.status === 'partial'}}">
+            <text class="none-title">暂未查到可比价的商品数据</text>
+            <text class="none-sub">上面的建议未经价格核实，换个商品名或链接再试</text>
+          </view>
+        </block>
+
+        <!-- 数字对比表：答案之后看细节 -->
         <view class="msg-tables" wx:if="{{item.tables && item.tables.length}}">
           <view class="tbl {{tb.cls}}" wx:for="{{item.tables}}" wx:for-item="tb" wx:key="key">
             <view class="tbl-title" wx:if="{{tb.title}}">{{tb.title}}</view>
@@ -57,43 +169,69 @@
             <view class="tbl-note" wx:if="{{tb.note}}">{{tb.note}}</view>
           </view>
         </view>
-        <view class="bubble {{item.role === 'user' ? 'user-bubble' : 'ai-bubble'}}"
-              wx:if="{{item.content}}">
-          <text user-select>{{item.content}}</text>
-        </view>
-        <view class="bubble ai-bubble" wx:elif="{{item.role !== 'user'}}">
-          <view class="thinking">
-            <view class="dot"></view><view class="dot"></view><view class="dot"></view>
-            <text class="thinking-text">正在翻你的账单和攻略…</text>
-          </view>
-        </view>
-        <!-- 比价购买入口卡片 -->
+
+        <!-- 比价结果卡（纵向）：总结条用实时数据算，商品 → 商家 → 价格 → 说明 → 操作 -->
         <view class="link-cards" wx:if="{{item.links && item.links.length}}">
-          <view class="link-card" wx:for="{{item.links}}" wx:for-item="lnk" wx:key="key"
-                catchtap="copyLink" data-url="{{lnk.url}}" data-label="{{lnk.label}}">
-            <view class="lc-main">
-              <text class="lc-platform">{{lnk.platform}}</text>
-              <text class="lc-label ellipsis">{{lnk.label}}</text>
-            </view>
-            <text class="lc-price num" wx:if="{{lnk.priceText}}">{{lnk.priceText}}</text>
-            <text class="lc-copy">复制</text>
+          <view class="price-sum" wx:if="{{item.summary}}">
+            <text class="ps-name ellipsis">{{item.summary.product}}</text>
+            <text class="ps-low num">最低 ¥{{item.summary.lowest}}</text>
+            <text class="ps-spread" wx:if="{{item.summary.spreadText}}">{{item.summary.spreadText}}</text>
+            <text class="ps-src">{{item.summary.sourceText}}</text>
           </view>
-          <text class="lc-tip">点卡片复制链接，到浏览器或对应 App 打开</text>
+          <view class="link-card {{lnk.isLowest ? 'is-lowest' : ''}}" wx:for="{{item.links}}" wx:for-item="lnk" wx:key="key">
+            <view class="lc-head">
+              <text class="lc-platform">{{lnk.platform}}</text>
+              <text class="lc-badge" wx:if="{{lnk.isLowest}}">实时最低</text>
+              <text class="lc-src" catchtap="tapSource"
+                    data-live="{{lnk.live}}" data-recorded="{{lnk.recordedAt}}">{{lnk.sourceText}} ›</text>
+            </view>
+            <text class="lc-desc" wx:if="{{lnk.desc}}">{{lnk.desc}}</text>
+            <view class="lc-shop" wx:if="{{lnk.label && lnk.label !== lnk.platform && lnk.label !== '查看商品'}}">
+              <text class="lc-shop-label">商家</text>
+              <text class="lc-shop-val ellipsis">{{lnk.label}}</text>
+            </view>
+            <view class="lc-price-row">
+              <text class="lc-price num" wx:if="{{lnk.priceText}}">{{lnk.priceText}}</text>
+              <text class="lc-price-none" wx:else>价格未查到</text>
+              <text class="lc-cut" wx:if="{{lnk.cutText}}">{{lnk.cutText}}</text>
+            </view>
+            <view class="lc-meta">
+              <text>运费与优惠以商品页为准</text>
+              <text wx:if="{{lnk.recordedAt}}">更新于 {{lnk.recordedAt}}</text>
+            </view>
+            <view class="lc-open" catchtap="copyLink" data-url="{{lnk.url}}" data-label="{{lnk.platform}}">复制链接去下单</view>
+          </view>
+          <text class="data-note">价格为查询时点的快照，下单前以商品页实际价格为准</text>
         </view>
-        <view class="tool-tag" wx:if="{{item.toolUsed && item.toolUsed !== 'chat' && item.toolUsed !== 'error'}}">
-          <text>🔧 {{item.toolUsed}}</text>
+
+        <!-- 一步动作：聊完能直接接着干 -->
+        <view class="msg-acts" wx:if="{{item.acts && item.acts.length}}">
+          <view class="act-chip" wx:for="{{item.acts}}" wx:for-item="act" wx:key="key"
+                bindtap="askAct" data-q="{{act.q}}" data-action="{{act.action}}">
+            <text class="ic ic-sm {{act.ic}}"></text>
+            <text class="act-name">{{act.name}}</text>
+          </view>
         </view>
+      </view>
+      <view class="avatar user-avatar" wx:if="{{item.role === 'user'}}">
+        <text class="ic ic-user ic-sm"></text>
       </view>
     </view>
     <view class="chat-bottom-pad"></view>
   </scroll-view>
 
-  <!-- 快捷问题（有对话后收进一行，避免挤掉聊天区） -->
-  <scroll-view scroll-x class="quick-bar" wx:if="{{messages.length > 0}}" enhanced show-scrollbar="{{false}}">
-    <view class="quick-q" wx:for="{{quickQuestions}}" wx:key="*this" bindtap="askQuick" data-q="{{item}}">{{item}}</view>
-  </scroll-view>
+  <!-- 聊天态保留一排紧凑常用功能（推荐问题在聊天后收起） -->
+  <view class="cap-strip" wx:if="{{messages.length > 0}}">
+    <scroll-view scroll-x enable-flex show-scrollbar="{{false}}" class="cap-bar">
+      <view class="cap {{sending ? 'cap-dim' : ''}}" wx:for="{{caps}}" wx:key="name"
+            bindtap="askCap" data-i="{{index}}">
+        <text class="ic ic-sm {{item.ic}}"></text>
+        <text class="cap-name">{{item.name}}</text>
+      </view>
+    </scroll-view>
+  </view>
 
-  <!-- 输入区 -->
+  <!-- 输入区：圆角容器 + 相机 + 主色发送键；textarea 自适应长内容 -->
   <view class="input-area">
     <view wx:if="{{image}}" class="img-preview">
       <image src="{{image.url}}" mode="aspectFill" class="img-preview-img"></image>
@@ -103,9 +241,14 @@
       <view class="img-btn {{uploading ? 'busy' : ''}}" bindtap="onChooseImage">
         <text class="ic ic-camera"></text>
       </view>
-      <input value="{{inputValue}}" placeholder="{{placeholder}}" placeholder-class="ph"
-             confirm-type="send" bindinput="onInput" bindconfirm="sendMessage" />
-      <view class="send-btn {{sending ? 'busy' : ''}}" bindtap="sendMessage">{{sending ? '思考中' : '发送'}}</view>
+      <textarea class="input-ta" value="{{inputValue}}" placeholder="{{placeholder}}"
+                placeholder-class="ph" bindinput="onInput" bindconfirm="sendMessage"
+                confirm-type="send" auto-height
+                maxlength="{{800}}" show-confirm-bar="{{false}}" disable-default-padding
+                cursor-spacing="16" adjust-position="{{true}}" />
+      <view class="send-btn {{sending ? 'busy' : ''}}" bindtap="onTapSend">
+        <text class="ic ic-sm {{sending ? 'ic-stop' : 'ic-send'}}"></text>
+      </view>
     </view>
   </view>
 </view>

@@ -145,9 +145,10 @@ Page({
 
   goAssistant() { wx.switchTab({ url: '/pages/assistant/assistant' }) },
 
-  goSettings() {
-    wx.showToast({ title: '设置功能开发中', icon: 'none' })
-  },
+  goCommunity() { wx.switchTab({ url: '/pages/community/community' }) },
+
+  // AI 执行计划历史（从攻略页「AI 帮我执行」生成的都在这）
+  goPlans() { wx.navigateTo({ url: '/pages/plan/plan' }) },
 
   logout() {
     const app = getApp()

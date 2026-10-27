@@ -1,63 +1,44 @@
-<!-- 账单页：月份切换 + 分类可视化 + 记账/改/删 + AI 联动 -->
+<!-- 账单页：浅色顶栏 + 总支出/趋势卡 + 分类环形图 + 目标/明细/打卡 -->
 <view class="container">
-  <!-- 头区：月份切换 + 支出总览 -->
-  <view class="hero">
-    <view class="mb-bar">
-      <view class="mb-btn" bindtap="shiftMonth" data-d="{{-1}}">
-        <view class="ic ic-sm ic-back ic-light"></view>
-      </view>
-      <picker class="mb-pick flex-1" mode="selector" range="{{months}}" range-key="month" bindchange="pickMonth">
-        <view class="mb-label">
-          <text class="mb-month">{{monthLabel}}</text>
-          <view class="ic ic-sm ic-arrow ic-light mb-caret"></view>
-        </view>
-      </picker>
-      <view class="mb-btn {{isCurrentMonth ? 'disabled' : ''}}" bindtap="shiftMonth" data-d="{{1}}">
-        <view class="ic ic-sm ic-arrow ic-light"></view>
-      </view>
+  <!-- 顶栏：月份切换（浅色 pill，取代旧深色头图） -->
+  <view class="top-bar">
+    <view class="tb-nav" bindtap="shiftMonth" data-d="{{-1}}">
+      <view class="ic ic-sm ic-back"></view>
     </view>
-
-    <view class="sum-row">
-      <view class="flex-1">
-        <text class="hero-sub">总支出（元）</text>
-        <view class="sum"><text class="num">{{summary.totalText || '0.00'}}</text></view>
-        <text class="hero-sub">{{summary.count || 0}} 笔记录<text wx:if="{{analysis.daily_avg}}"> · 日均 {{analysis.daily_avg}} 元</text></text>
+    <picker class="tb-pick" mode="selector" range="{{months}}" range-key="month" bindchange="pickMonth">
+      <view class="tb-month">
+        <text>{{monthLabel}}</text>
+        <view class="ic ic-sm ic-arrow tb-caret"></view>
       </view>
-      <view class="sum-side">
-        <view wx:if="{{analysis.diff_pct !== null && analysis.diff_pct !== undefined}}"
-              class="trend {{analysis.diff > 0 ? 'up' : 'down'}}">
-          <view class="ic ic-sm ic-arrow trend-ic {{analysis.diff > 0 ? 'is-up' : 'is-down'}}"></view>
-          <text class="num">{{analysis.diff_pct}}%</text>
-        </view>
-        <text class="hero-sub">{{analysis.prev_month || ''}} 共 {{analysis.prev_total || 0}} 元</text>
-      </view>
-    </view>
-
-    <view class="hero-actions">
-      <view class="hero-btn flex-1" bindtap="askAI">
-        <view class="ic ic-sm ic-spark ic-light"></view><text>让 AI 分析</text>
-      </view>
-      <view class="hero-btn flex-1" bindtap="seedDemo" wx:if="{{!seeding}}">
-        <view class="ic ic-sm ic-plus ic-light"></view><text>导入演示账单</text>
-      </view>
-      <view class="hero-btn flex-1 btn-disabled" wx:else>
-        <view class="ic ic-sm ic-plus ic-light"></view><text>导入中…</text>
-      </view>
+    </picker>
+    <view class="tb-nav {{isCurrentMonth ? 'disabled' : ''}}" bindtap="shiftMonth" data-d="{{1}}">
+      <view class="ic ic-sm ic-arrow"></view>
     </view>
   </view>
 
-  <!-- 本月目标：支出上限 + 省钱目标，两种可以并存 -->
-  <view class="card goal-card" wx:if="{{plan && (plan.spend_limit > 0 || plan.target_amount > 0)}}">
-    <view class="flex-between">
-      <view class="flex gap-2">
-        <view class="list-icon"><view class="ic ic-target"></view></view>
-        <text class="title">本月目标</text>
+  <!-- 卡1：消费管理。只管「花了多少 / 预算剩多少」，省钱成果在下面单独一张卡 -->
+  <view class="card spend-card">
+    <text class="sc-label">本月总支出</text>
+    <view class="sc-row">
+      <text class="sc-num num">¥{{summary.totalText || '0.00'}}</text>
+      <view wx:if="{{analysis.diff_pct !== null && analysis.diff_pct !== undefined}}"
+            class="trend-chip {{analysis.diff > 0 ? 'up' : 'down'}}">
+        <text class="num">{{analysis.diff_pct}}%</text>
       </view>
-      <text class="chip chip-grey" bindtap="openGoalDialog">修改</text>
+    </view>
+    <text class="sc-sub">{{summary.count || 0}} 笔记录<text wx:if="{{analysis.daily_avg}}"> · 日均 {{analysis.daily_avg}} 元</text><text wx:if="{{analysis.prev_month}}"> · {{analysis.prev_month}} 共 {{analysis.prev_total}} 元</text></text>
+
+    <!-- 预算剩余（超支红/剩余绿），一眼看到还能花多少 -->
+    <view class="metric-strip" wx:if="{{plan && plan.spend_limit > 0}}">
+      <view class="ms-cell">
+        <text class="ms-num num {{plan.budget_over ? 'is-risk' : 'is-ok'}}">{{plan.budget_over ? '-' + plan.budget_overAmt : plan.budget_left}}</text>
+        <text class="ms-label">{{plan.budget_over ? '已超支(元)' : '预算剩余(元)'}}</text>
+      </view>
     </view>
 
-    <block wx:if="{{plan.spend_limit > 0}}">
-      <view class="goal-label">
+    <!-- 预算进度：贴着指标条走，不单独开卡 -->
+    <block wx:if="{{plan && plan.spend_limit > 0}}">
+      <view class="ms-progress">
         <text class="desc">支出上限 {{plan.spend_limit}} 元 · 已花 {{plan.spend}} 元</text>
         <text class="desc {{plan.budget_over ? 'over' : 'left'}}">{{plan.budget_overText}}</text>
       </view>
@@ -65,73 +46,29 @@
         <view class="goal-fill budget {{plan.budget_over ? 'is-over' : ''}}" style="width: {{plan.budget_used > 100 ? 100 : plan.budget_used}}%"></view>
       </view>
       <text class="desc goal-hint" wx:if="{{plan.budget_perDay}}">{{plan.budget_perDay}}</text>
+      <text class="ms-edit" bindtap="openGoalDialog">修改本月目标</text>
     </block>
-
-    <block wx:if="{{plan.target_amount > 0}}">
-      <view class="goal-label">
-        <text class="desc">省钱目标 {{plan.target_amount}} 元 · 已省 {{plan.saved_amount}} 元</text>
-        <text class="chip chip-sm chip-ok">打卡 {{plan.checkin_days || 0}} 天</text>
-      </view>
-      <view class="goal-bar">
-        <view class="goal-fill" style="width: {{plan.save_progress > 100 ? 100 : plan.save_progress}}%"></view>
-      </view>
-    </block>
-  </view>
-
-  <!-- 没设目标时给个入口，不然用户根本不知道这里能设 -->
-  <view class="card goal-empty" wx:elif="{{isCurrentMonth && !loading}}" bindtap="openGoalDialog">
-    <view class="flex gap-2">
-      <view class="list-icon"><view class="ic ic-target"></view></view>
-      <view class="flex-1">
-        <text class="title">设个月度目标</text>
-        <text class="desc">比如「这个月最多花 2000」或「这个月省 500」，AI 分析账单时会按它来提醒</text>
-      </view>
+    <!-- 没设目标时给个轻入口，不占一张卡 -->
+    <view class="ms-set" wx:if="{{isCurrentMonth && !loading && !(plan && (plan.spend_limit > 0 || plan.target_amount > 0))}}"
+          bindtap="openGoalDialog">
+      <text class="ic ic-sm ic-target"></text>
+      <text class="ms-set-text">设个月度目标，AI 分析时按它提醒超支</text>
       <view class="ic ic-sm ic-arrow"></view>
     </view>
-  </view>
 
-  <!-- 每日打卡：后端 /checkin/do 早就写好了，但前端一直没有入口，
-       账单页只显示「打卡 N 天」却没法打。这里补上按钮 + 本月日历。 -->
-  <view class="card checkin-card" wx:if="{{isCurrentMonth}}">
-    <view class="flex-between">
-      <view class="flex gap-2 flex-1">
-        <view class="list-icon"><view class="ic ic-check"></view></view>
-        <view class="flex-1">
-          <text class="title">今日打卡</text>
-          <text class="desc">{{ck.checked ? '今天已记 ' + ck.todaySaved + ' 元，再提交会覆盖' : '记下今天省下的钱，本月累计会跟着涨'}}</text>
-        </view>
+    <canvas canvas-id="trendBars" class="trend-canvas"></canvas>
+    <view class="sc-actions">
+      <view class="sc-btn" bindtap="askAI">
+        <view class="ic ic-sm ic-spark"></view><text>让 AI 分析</text>
       </view>
-      <view class="chip {{ck.checked ? 'chip-ok' : 'chip-grey'}}">已打 {{ck.count}} 天</view>
-    </view>
-    <view class="ck-row">
-      <input class="ck-input" type="digit" placeholder="省了多少元" value="{{ck.amount}}" bindinput="onCkAmount" />
-      <input class="ck-input ck-note" placeholder="省在哪了（选填）" value="{{ck.note}}" bindinput="onCkNote" maxlength="30" />
-      <view class="ck-btn {{ck.submitting ? 'ck-btn-off' : ''}}" bindtap="submitCheckin">
-        {{ck.submitting ? '提交中' : (ck.checked ? '改一下' : '打卡')}}
+      <view class="sc-btn" bindtap="seedDemo" wx:if="{{!seeding}}">
+        <view class="ic ic-sm ic-plus"></view><text>导入演示账单</text>
       </view>
-    </view>
-    <view class="ck-cal" wx:if="{{ck.cells.length}}">
-      <view class="ck-cell {{item.cls}}" wx:for="{{ck.cells}}" wx:key="key">
-        <text class="ck-cell-n">{{item.day}}</text>
+      <view class="sc-btn btn-disabled" wx:else>
+        <view class="ic ic-sm ic-plus"></view><text>导入中…</text>
       </view>
     </view>
   </view>
-
-  <!-- 快捷记账：记账产品最大的流失原因就是「太麻烦」，
-       常用消费预置成按钮，点一下只改金额就能入账。 -->
-  <view class="card quick-card">
-    <text class="title quick-title">快捷记一笔</text>
-    <view class="quick-grid">
-      <view class="quick-item" wx:for="{{quickItems}}" wx:key="label"
-            bindtap="quickAdd" data-i="{{index}}">
-        <view class="ic ic-sm {{item.ic}}"></view>
-        <text class="quick-label">{{item.label}}</text>
-        <text class="quick-amt num">¥{{item.amount}}</text>
-      </view>
-    </view>
-    <text class="desc quick-hint">点一下按默认金额入账，长按可先改金额</text>
-  </view>
-
 
   <view class="card" wx:if="{{loading}}">
     <view class="skeleton" style="height: 26rpx; width: 40%; margin-bottom: 28rpx;"></view>
@@ -142,12 +79,11 @@
 
   <!-- AI 可视化 -->
   <block wx:elif="{{hasBills}}">
-    <view class="section">
-      <text class="section-title">钱都花在哪了</text>
-      <text class="section-sub">{{analysis.month}}</text>
-    </view>
-
-    <view class="card chart-card">
+    <view class="card donut-card">
+      <view class="dc-head">
+        <text class="dc-title">钱都花在哪了</text>
+        <text class="desc">{{analysis.month}}</text>
+      </view>
       <view class="chart-wrap">
         <canvas canvas-id="billPie" class="pie-canvas"></canvas>
       </view>
@@ -193,24 +129,55 @@
     </view>
   </view>
 
-  <!-- 分类合计 -->
-  <view class="section" wx:if="{{summary.categories.length}}">
-    <text class="section-title">分类合计</text>
-    <text class="section-sub">共 {{summary.count || 0}} 笔</text>
-  </view>
-  <view class="tbl cat-tbl" wx:if="{{summary.categories.length}}">
-    <view class="tbl-row tbl-head">
-      <view class="tbl-cell">分类</view>
-      <view class="tbl-cell right">支出（元）</view>
-    </view>
-    <view class="tbl-row" wx:for="{{summary.categories}}" wx:key="name">
-      <view class="tbl-cell">
-        <view class="flex">
-          <view class="legend-dot" style="background: {{item.color}}"></view>
-          <text>{{item.name}}</text>
+  <!-- AI 月度解读：统计数字由程序算，AI 只负责解读。历史报告可回看 -->
+  <view class="card report-card" wx:if="{{!loading}}">
+    <view class="advice-head">
+      <view class="flex gap-2">
+        <view class="list-icon"><view class="ic ic-spark"></view></view>
+        <view class="flex-col">
+          <text class="title">AI 月度解读</text>
+          <text class="desc">{{month}} · 金额和占比由程序统计，AI 只做解读</text>
         </view>
       </view>
-      <view class="tbl-cell right num">{{item.amount}}</view>
+      <view class="btn-ghost advice-refresh" bindtap="makeReport" wx:if="{{!report.loading && !report.empty}}">
+        <view class="ic ic-sm ic-refresh {{report.loading ? 'is-spin' : ''}}"></view>
+        <text>重新生成</text>
+      </view>
+    </view>
+
+    <view wx:if="{{report.empty}}" class="report-empty">
+      <text class="desc">{{report.message}}</text>
+    </view>
+
+    <block wx:if="{{report.data}}">
+      <view class="report-limited" wx:if="{{report.data.report.data_limited}}">
+        <text class="ic ic-sm ic-clock"></text><text>本月账单笔数较少，以下解读仅供参考</text>
+      </view>
+      <text class="report-summary">{{report.data.report.summary}}</text>
+      <view class="report-point" wx:for="{{report.data.report.points}}" wx:key="title">
+        <text class="rp-title">{{item.title}}</text>
+        <text class="rp-text">{{item.text}}</text>
+      </view>
+      <view class="report-advice" wx:if="{{report.data.report.advice}}">
+        <text class="rp-title">调整建议</text>
+        <text class="rp-text">{{report.data.report.advice}}</text>
+      </view>
+      <view class="report-foot">
+        <text class="desc">生成于 {{report.data.created_at || '刚刚'}}</text>
+        <view class="flex gap-2">
+          <picker class="rep-pick" mode="selector" range="{{report.list}}" range-key="label"
+                  bindchange="pickReport" wx:if="{{report.list.length > 1}}">
+            <view class="rep-btn">历史报告<text class="num"> {{report.list.length}}</text></view>
+          </picker>
+          <view class="rep-btn" bindtap="askReportAI">追问一句</view>
+        </view>
+      </view>
+    </block>
+
+    <view class="report-make" wx:if="{{!report.data && !report.empty}}"
+          bindtap="makeReport">
+      <view class="ic ic-spark"></view>
+      <text>{{report.loading ? 'AI 正在解读本月账单…' : '生成 AI 解读：这个月的钱花在哪了、哪最能省'}}</text>
     </view>
   </view>
 
@@ -257,6 +224,85 @@
     </view>
     <view class="more-btn" wx:if="{{bills.length > previewCount}}" bindtap="toggleBills">
       {{showAllBills ? '收起' : '展开全部 ' + bills.length + ' 笔'}}
+    </view>
+  </view>
+
+  <!-- 快捷记账：记账产品最大的流失原因就是「太麻烦」，
+       常用消费预置成按钮，点一下只改金额就能入账。 -->
+  <view class="card quick-card">
+    <text class="title quick-title">快捷记一笔</text>
+    <view class="quick-grid">
+      <view class="quick-item" wx:for="{{quickItems}}" wx:key="label"
+            bindtap="quickAdd" data-i="{{index}}">
+        <view class="ic ic-sm {{item.ic}}"></view>
+        <text class="quick-label">{{item.label}}</text>
+        <text class="quick-amt num">¥{{item.amount}}</text>
+      </view>
+    </view>
+    <text class="desc quick-hint">点一下按默认金额入账，长按可先改金额</text>
+  </view>
+
+  <!-- 省钱成果：和上面的「消费管理」分开。只算用户确认的实际节省
+       （每日打卡 + 攻略/帖子/AI 方案里记的），预算和支出不在这张卡 -->
+  <view class="card save-card" wx:if="{{!loading}}">
+    <view class="flex-between">
+      <view class="flex gap-2">
+        <view class="list-icon"><view class="ic ic-check"></view></view>
+        <text class="title">省钱成果</text>
+      </view>
+      <view class="chip chip-ok" wx:if="{{isCurrentMonth}}">已打 {{plan ? (plan.checkin_days || 0) : 0}} 天</view>
+    </view>
+
+    <view class="save-hero">
+      <text class="save-hero-num num">{{recordsTotal || '0.00'}}</text>
+      <text class="save-hero-unit">{{month}} 实际已省（元）</text>
+    </view>
+
+    <block wx:if="{{plan && plan.target_amount > 0}}">
+      <view class="ms-progress">
+        <text class="desc">省钱目标 {{plan.target_amount}} 元</text>
+        <text class="desc left">进度 {{plan.save_progress || 0}}%</text>
+      </view>
+      <view class="goal-bar">
+        <view class="goal-fill" style="width: {{plan.save_progress > 100 ? 100 : plan.save_progress}}%"></view>
+      </view>
+      <text class="ms-edit" bindtap="openGoalDialog">修改本月目标</text>
+    </block>
+
+    <!-- 每日打卡：记下今天省了多少钱，这条记录就在下面的列表里 -->
+    <block wx:if="{{isCurrentMonth}}">
+      <view class="desc ck-desc">{{ck.checked ? '今天已记 ' + ck.todaySaved + ' 元，再提交会覆盖' : '记下今天省下的钱，上面的累计会跟着涨'}}</view>
+      <view class="ck-row">
+        <input class="ck-input" type="digit" placeholder="省了多少元" value="{{ck.amount}}" bindinput="onCkAmount" />
+        <input class="ck-input ck-note" placeholder="省在哪了（选填）" value="{{ck.note}}" bindinput="onCkNote" maxlength="30" />
+        <view class="ck-btn {{ck.submitting ? 'ck-btn-off' : ''}}" bindtap="submitCheckin">
+          {{ck.submitting ? '提交中' : (ck.checked ? '改一下' : '打卡')}}
+        </view>
+      </view>
+      <view class="ck-cal" wx:if="{{ck.cells.length}}">
+        <view class="ck-cell {{item.cls}}" wx:for="{{ck.cells}}" wx:key="key">
+          <text class="ck-cell-n">{{item.day}}</text>
+        </view>
+      </view>
+    </block>
+
+    <view class="flex-between rec-head">
+      <text class="rec-title">省钱记录</text>
+      <text class="desc">点开改金额 · 长按删除</text>
+    </view>
+    <view class="rec-list" wx:if="{{records.length}}">
+      <view class="rec-row" wx:for="{{records}}" wx:key="id"
+            bindtap="openRecordEdit" bindlongpress="removeRecord" data-id="{{item.id}}">
+        <view class="rec-chip rec-{{item.source === '打卡' ? 'ck' : item.source === '攻略' ? 'art' : item.source === '社区经验' ? 'post' : 'ai'}}">{{item.source}}</view>
+        <view class="flex-1 rec-main">
+          <text class="rec-sub ellipsis" wx:if="{{item.subText}}">{{item.subText}}</text>
+          <text class="rec-sub rec-sub-empty" wx:else>{{item.day}}</text>
+        </view>
+        <text class="rec-amt num">+{{item.amountText}}</text>
+      </view>
+    </view>
+    <view class="empty-rec" wx:else>
+      <text class="desc">这个月还没有省钱记录。在攻略或帖子详情点「记省钱」，或者上面打卡，都会进这里</text>
     </view>
   </view>
 
@@ -337,6 +383,30 @@
     <view class="dialog-btns">
       <view class="btn-cancel" bindtap="closeGoalDialog">取消</view>
       <view class="btn-confirm" bindtap="saveGoal">保存</view>
+    </view>
+  </view>
+
+  <!-- 省钱记录编辑弹窗：只能改金额和备注，来源/关联内容要改就删了重记 -->
+  <view class="mask" wx:if="{{editingRecord}}" bindtap="closeRecordEdit"></view>
+  <view class="dialog" wx:if="{{editingRecord}}">
+    <view class="dialog-head">
+      <view class="dialog-title">改这笔省钱记录</view>
+      <view class="dialog-x" bindtap="closeRecordEdit"><view class="ic ic-sm ic-close"></view></view>
+    </view>
+    <view class="rec-meta"><text class="chip chip-grey">{{editingRecord.source}}</text><text class="desc">{{editingRecord.day}}</text></view>
+    <view class="form-item">
+      <text class="label">实际省下（元）</text>
+      <input class="input" type="digit" placeholder="0.00" placeholder-class="ph"
+             value="{{recForm.amount}}" bindinput="onRecInput" data-field="amount" />
+    </view>
+    <view class="form-item">
+      <text class="label">备注</text>
+      <input class="input" placeholder="省在哪了" placeholder-class="ph"
+             value="{{recForm.note}}" bindinput="onRecInput" data-field="note" maxlength="60" />
+    </view>
+    <view class="dialog-btns">
+      <view class="btn-cancel" bindtap="closeRecordEdit">取消</view>
+      <view class="btn-confirm" bindtap="saveRecordEdit">保存</view>
     </view>
   </view>
 </view>

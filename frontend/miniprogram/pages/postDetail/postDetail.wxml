@@ -31,9 +31,39 @@
       <text class="ic ic-gift"></text>
       <text>{{favorited ? '已收藏' : '收藏'}}</text>
     </view>
-    <view class="action">
-      <text class="ic ic-comment"></text>
-      <text>评论 {{post.comments_count || 0}}</text>
+    <view class="action" bindtap="askAI">
+      <text class="ic ic-spark"></text>
+      <text>问AI</text>
+    </view>
+    <view class="action action-save" bindtap="openSaveDialog">
+      <text class="ic ic-check"></text>
+      <text>记省钱</text>
+    </view>
+  </view>
+
+  <!-- 闭环提示：试了这条经验，实际省了多少，记下来才算数 -->
+  <view class="loop-hint" wx:if="{{post.title}}">试过这条经验了吗？实际省下的钱，记一笔才进省钱成果</view>
+
+  <!-- 记省钱弹窗：来源是这条帖子，只记用户确认的实际节省 -->
+  <view class="mask" wx:if="{{showSaveDialog}}" bindtap="closeSaveDialog">
+    <view class="dialog save-dialog" catchtap="">
+      <view class="dialog-head">记一笔省钱</view>
+      <view class="save-src">来源：帖子《{{post.title}}》</view>
+      <view class="form-item">
+        <text class="form-label">实际省下（元）</text>
+        <input class="form-input" type="digit" placeholder="填你真实省到的金额" placeholder-class="ph"
+               value="{{saveForm.amount}}" data-field="amount" bindinput="onSaveInput" />
+      </view>
+      <view class="form-item">
+        <text class="form-label">备注</text>
+        <input class="form-input" placeholder="例如：照着经验换了充电方式" placeholder-class="ph"
+               value="{{saveForm.note}}" data-field="note" bindinput="onSaveInput" />
+      </view>
+      <view class="save-note">只记你确认真实发生的节省；帖子里估算的「约省」不算数</view>
+      <view class="dialog-btns">
+        <view class="btn-cancel" bindtap="closeSaveDialog">取消</view>
+        <view class="btn-confirm" bindtap="submitSave">确认记账</view>
+      </view>
     </view>
   </view>
 

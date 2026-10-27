@@ -67,4 +67,25 @@ page { background: #f7f8fa; }
 .content { font-size: 28rpx; line-height: 1.8; }
 .acts { gap: 14rpx; }
 .act { border-radius: 10rpx; box-shadow: none; }
-.bar-send { border-radius: 10rpx; background: #263b55; box-shadow: none; }
+.bar-send { border-radius: 10rpx; background: var(--brand); box-shadow: none; }
+
+/* —— 省钱闭环：问 AI / 记省钱 —— */
+.act-save { border-color: rgba(24,167,117,.4); }
+.act-save .ic { opacity: .9; }
+.loop-hint {
+  display: block; margin: 14rpx 4rpx 0;
+  font-size: 22rpx; color: var(--muted); line-height: 1.55;
+}
+.save-dialog { z-index: 95; }
+.save-src { display: block; margin-bottom: var(--s-3); font-size: 23rpx; color: var(--muted); }
+.save-note { display: block; margin-top: 4rpx; font-size: 21rpx; color: var(--muted); line-height: 1.5; }
+
+/* —— AI 帮我执行入口 —— */
+.exec-entry {
+  display: flex; align-items: center; gap: var(--s-2);
+  margin: var(--s-3) var(--gap) 0; padding: 24rpx;
+  border: 1rpx solid var(--brand-line); border-radius: var(--r-md);
+  background: var(--brand-soft); color: var(--brand);
+}
+.exec-entry:active { opacity: .8; }
+.exec-title { font-size: 28rpx; font-weight: 600; }

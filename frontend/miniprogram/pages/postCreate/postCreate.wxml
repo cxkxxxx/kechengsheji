@@ -3,6 +3,7 @@
   <view class="pc-head">
     <view class="ic ic-back" bindtap="back"></view>
     <text class="pc-head-title">发布分享</text>
+    <view class="pc-ai" bindtap="openAI"><text class="ic ic-sm ic-spark"></text><text>AI 帮我写</text></view>
   </view>
 
   <view class="card">
@@ -44,5 +45,50 @@
     <button class="btn-primary {{uploading ? 'btn-disabled' : ''}}" bindtap="submitPost">
       {{uploading ? '图片上传中…' : '发布'}}
     </button>
+    <text class="pc-tip">AI 生成的内容只是草稿，检查修改后再发布</text>
+  </view>
+
+  <!-- AI 创作弹窗（社区帖版）：生成的草稿可编辑后才发布 -->
+  <view class="mask" wx:if="{{aiOpen}}" bindtap="closeAI"></view>
+  <view class="dialog ai-dialog" wx:if="{{aiOpen}}">
+    <view class="dialog-head">
+      <view class="dialog-title">AI 帮我写</view>
+      <view class="dialog-x" bindtap="closeAI"><view class="ic ic-sm ic-close"></view></view>
+    </view>
+    <view class="tags ai-modes">
+      <view class="tag {{aiMode === item.k ? 'active' : ''}}" wx:for="{{aiModes}}" wx:key="k"
+            bindtap="pickAIMode" data-k="{{item.k}}">{{item.name}}</view>
+    </view>
+    <block wx:if="{{aiMode === 'generate'}}">
+      <view class="form-item">
+        <text class="form-label">主题（必填）</text>
+        <input class="form-input" placeholder="例如：换了话费套餐一个月省30" placeholder-class="ph"
+               value="{{aiForm.topic}}" data-field="topic" bindinput="onAIInput" />
+      </view>
+      <view class="form-item">
+        <text class="form-label">我的经历（可选）</text>
+        <textarea class="form-area" placeholder="做了什么、在哪做的、省了多少…" placeholder-class="ph"
+                  maxlength="1000" value="{{aiForm.experience}}" data-field="experience" bindinput="onAIInput" />
+      </view>
+    </block>
+    <view class="ai-hint" wx:else>按下面正文里已有的内容{{aiMode === 'polish' ? '润色' : '重新组织'}}，事实不会变</view>
+
+    <view class="ai-result" wx:if="{{aiResult}}">
+      <view class="ai-result-head"><text class="chip chip-sm chip-grey">AI 草稿 · 未发布</text></view>
+      <view class="form-item"><text class="form-label">标题</text><text class="ai-val">{{aiResult.title}}</text></view>
+      <view class="form-item"><text class="form-label">正文</text><text class="ai-val ai-val-block">{{aiResult.content}}</text></view>
+      <view class="form-item" wx:if="{{aiResult.tags.length}}">
+        <text class="form-label">建议标签</text>
+        <view class="tags"><text class="tag" wx:for="{{aiResult.tags}}" wx:key="*this">{{item}}</text></view>
+      </view>
+    </view>
+
+    <view class="dialog-btns">
+      <view class="btn-cancel" bindtap="closeAI">关闭</view>
+      <view class="btn-cancel" wx:if="{{aiResult}}" bindtap="runAI">{{aiBusy ? '生成中…' : '再生成一次'}}</view>
+      <view class="btn-confirm {{aiBusy ? 'btn-disabled' : ''}}" bindtap="{{aiResult ? 'applyResult' : 'runAI'}}">
+        {{aiBusy ? '生成中…' : aiResult ? '用这版填入' : '生成'}}
+      </view>
+    </view>
   </view>
 </view>

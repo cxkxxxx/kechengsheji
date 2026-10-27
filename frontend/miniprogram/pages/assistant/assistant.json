@@ -1,4 +1,5 @@
 {
+  "navigationStyle": "custom",
   "navigationBarTitleText": "AI省钱助手",
   "navigationBarBackgroundColor": "#FFFFFF",
   "navigationBarTextStyle": "black",

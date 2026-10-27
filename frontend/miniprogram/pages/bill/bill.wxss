@@ -1,69 +1,50 @@
-/* 账单页：只有本页特有的样式，通用件在 app.wxss */
+/* 账单页：只有本页特有的样式，通用件在 app.wxss；只定义一层不搞覆盖段 */
 .container { padding-bottom: 160rpx; }
 
-/* —— 头区：月份切换 —— */
-.mb-bar { display: flex; align-items: center; gap: var(--s-2); margin-bottom: var(--s-5); }
-.mb-btn {
-  width: 72rpx; height: 60rpx; display: flex; align-items: center; justify-content: center;
-  border-radius: var(--r-sm); background: rgba(255, 255, 255, .12);
+/* —— 顶栏：月份切换（浅色） —— */
+.top-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20rpx var(--gap) var(--s-3);
 }
-.mb-btn:active { background: rgba(255, 255, 255, .24); }
-.mb-btn.disabled { opacity: .38; }
-.mb-pick { min-width: 0; }
-.mb-label {
+.tb-nav {
+  width: 72rpx; height: 64rpx; display: flex; align-items: center; justify-content: center;
+  border-radius: var(--r-sm); background: var(--card); box-shadow: var(--sh-1);
+}
+.tb-nav:active { background: var(--fill); }
+.tb-nav.disabled { opacity: .38; }
+.tb-pick { min-width: 0; }
+.tb-month {
   display: flex; align-items: center; justify-content: center; gap: var(--s-1);
-  height: 60rpx; padding: 0 var(--s-3);
+  height: 64rpx; padding: 0 var(--s-4); border-radius: var(--r-full);
+  background: var(--card); box-shadow: var(--sh-1);
+  font-size: 28rpx; font-weight: 600; color: var(--ink);
 }
-.mb-month { font-size: 30rpx; font-weight: 600; color: #fff; letter-spacing: .3rpx; }
-.mb-caret { transform: rotate(90deg); opacity: .7; }
+.tb-caret { transform: rotate(90deg); opacity: .55; }
 
-/* —— 头区：总览数字 —— */
-.sum-row { display: flex; align-items: flex-end; }
-.sum { font-size: 68rpx; font-weight: 800; color: #fff; line-height: 1.15; margin: 6rpx 0 4rpx; }
-.hero-sub { color: rgba(255, 255, 255, .82); opacity: 1; }
-.sum-side { text-align: right; flex: none; }
-.trend {
-  display: inline-flex; align-items: center; gap: 4rpx; padding: 6rpx 18rpx;
-  border-radius: var(--r-full); font-size: 24rpx; font-weight: 700;
-  background: rgba(255, 255, 255, .18); color: #fff; margin-bottom: var(--s-2);
+/* —— 卡1：本月总支出 + 近 6 个月趋势 —— */
+.spend-card { padding: var(--s-4) var(--s-4) var(--s-3); }
+.sc-label { display: block; font-size: 25rpx; color: var(--muted); }
+.sc-row { display: flex; align-items: center; gap: var(--s-2); margin-top: 6rpx; }
+.sc-num { font-size: 60rpx; font-weight: 700; color: var(--ink); line-height: 1.15; }
+.trend-chip {
+  padding: 4rpx 16rpx; border-radius: var(--r-full); font-size: 22rpx; font-weight: 700;
 }
-.trend-ic { transform: rotate(90deg); }
-.trend-ic.is-up { transform: rotate(-90deg); }
-.trend.up { background: rgba(229, 72, 77, .28); }
-.trend.down { background: rgba(255, 255, 255, .18); }
-.hero-actions { display: flex; gap: var(--s-2); margin-top: var(--s-5); }
-.hero-btn {
-  display: flex; align-items: center; justify-content: center; gap: var(--s-1);
-  padding: 20rpx 0; border-radius: var(--r-sm); font-size: 26rpx; font-weight: 500;
-  background: rgba(255, 255, 255, .16); border: 1rpx solid rgba(255, 255, 255, .34); color: #fff;
+.trend-chip.up { background: rgba(223, 81, 81, .12); color: var(--danger); }
+.trend-chip.down { background: rgba(24, 167, 117, .12); color: var(--ok); }
+.sc-sub { display: block; margin-top: 6rpx; font-size: 23rpx; color: var(--muted); }
+.trend-canvas { width: 100%; height: 300rpx; margin-top: var(--s-3); }
+.sc-actions { display: flex; gap: var(--s-2); margin-top: var(--s-2); }
+.sc-btn {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: var(--s-1);
+  padding: 18rpx 0; border-radius: var(--r-sm); font-size: 25rpx; font-weight: 500;
+  background: var(--brand-soft); color: var(--brand);
 }
-.hero-btn:active { background: rgba(255, 255, 255, .28); }
+.sc-btn:active { background: var(--fill); }
 
-/* —— 省钱目标 —— */
-.goal-card .title { display: block; }
-.goal-bar { height: 14rpx; border-radius: var(--r-full); background: var(--fill); overflow: hidden; margin: var(--s-3) 0 var(--s-2); }
-.goal-fill { height: 100%; border-radius: var(--r-full); background: var(--brand); }
-.goal-label { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2); }
-.goal-label .desc { flex: 1; min-width: 0; }
-.goal-label .left { color: var(--ok); }
-.goal-label .over { color: var(--danger); font-weight: 600; }
-/* 支出上限条：接近用完转橙，超了转红 */
-.goal-fill.budget { background: var(--ok); }
-.goal-fill.budget.is-over { background: var(--danger); }
-/* 第二个目标块之间留口气，两块进度条贴在一起会读不出来 */
-.goal-card .goal-label:not(:first-child) { margin-top: var(--s-4); }
-
-.goal-empty { display: flex; align-items: center; border: 1rpx dashed var(--brand-line); }
-.goal-empty:active { background: var(--brand-soft); }
-.goal-empty .title { display: block; font-size: 29rpx; }
-.goal-empty .desc { display: block; margin-top: 6rpx; line-height: 1.5; }
-
-/* 目标弹窗 */
-.label-hint { font-size: 21rpx; color: var(--muted); font-weight: 400; margin-left: 10rpx; }
-.goal-tip { display: block; margin-top: 8rpx; font-size: 21rpx; }
-
-/* —— 图表 —— */
-.chart-card { padding: var(--s-4) var(--s-4) var(--s-2); }
+/* —— 分类占比环形图 —— */
+.donut-card { padding: var(--s-4) var(--s-4) var(--s-2); }
+.dc-head { display: flex; align-items: baseline; justify-content: space-between; }
+.dc-title { font-size: 30rpx; font-weight: 600; color: var(--ink); }
 .chart-wrap { display: flex; justify-content: center; }
 .pie-canvas { width: 300px; height: 300px; }
 .legend { margin-top: var(--s-2); }
@@ -75,6 +56,43 @@
 .legend-pct { width: 76rpx; text-align: right; color: var(--brand); font-weight: 600; font-size: 24rpx; }
 .legend-amt { width: 150rpx; text-align: right; color: var(--muted); font-size: 24rpx; }
 
+/* —— 核心指标条：预算剩余/实际已省/打卡贴着总支出走，不另开大卡 —— */
+.metric-strip {
+  display: flex; gap: var(--s-2);
+  margin-top: var(--s-4); padding: var(--s-3) 0;
+  border-top: 1rpx solid var(--line); border-bottom: 1rpx solid var(--line);
+}
+.ms-cell { flex: 1; min-width: 0; }
+.ms-num { display: block; font-size: 38rpx; font-weight: 700; color: var(--ink); line-height: 1.2; }
+.ms-num.is-ok { color: var(--ok); }
+.ms-num.is-risk { color: var(--danger); }
+.ms-label { display: block; margin-top: 4rpx; font-size: 21rpx; color: var(--muted); }
+.ms-progress { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2); margin-top: var(--s-3); }
+.ms-progress .desc { flex: 1; min-width: 0; }
+.ms-progress .left { color: var(--ok); }
+.ms-progress .over { color: var(--danger); font-weight: 600; }
+.ms-edit { display: block; margin-top: var(--s-3); font-size: 23rpx; color: var(--brand); }
+.ms-edit:active { opacity: .7; }
+.ms-set {
+  display: flex; align-items: center; gap: var(--s-2);
+  margin-top: var(--s-4); padding: 20rpx 22rpx;
+  border: 1rpx dashed var(--brand-line); border-radius: var(--r-sm);
+  color: var(--brand); background: var(--brand-soft);
+}
+.ms-set:active { opacity: .8; }
+.ms-set-text { flex: 1; min-width: 0; font-size: 24rpx; }
+
+.goal-bar { height: 12rpx; border-radius: var(--r-full); background: var(--fill); overflow: hidden; margin: var(--s-2) 0; }
+.goal-fill { height: 100%; border-radius: var(--r-full); background: var(--brand); }
+/* 支出上限条：正常绿（正向状态），超了转红（风险状态） */
+.goal-fill.budget { background: var(--ok); }
+.goal-fill.budget.is-over { background: var(--danger); }
+.goal-hint { display: block; margin-top: 10rpx; font-size: 21rpx; }
+
+/* 目标弹窗 */
+.label-hint { font-size: 21rpx; color: var(--muted); font-weight: 400; margin-left: 10rpx; }
+.goal-tip { display: block; margin-top: 8rpx; font-size: 21rpx; }
+
 /* —— AI 建议 —— */
 .advice-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--s-3); }
 .advice-refresh { flex: none; }
@@ -82,10 +100,6 @@
 .ai-text.placeholder { color: var(--muted); }
 @keyframes spin { to { transform: rotate(360deg); } }
 .ic.is-spin { animation: spin 1s linear infinite; }
-
-/* —— 分类合计（表格） —— */
-.cat-tbl { margin: 0 var(--gap) var(--s-3); }
-.cat-tbl .legend-dot { margin-right: 12rpx; }
 
 /* —— 消费明细 —— */
 .pad-0 { padding: 0; overflow: hidden; }
@@ -111,31 +125,12 @@
   color: var(--danger);
 }
 
-/* 账单页：以数据和目标为主，不使用大面积渐变 */
-page { background: #f7f8fa; }
-.container { padding-bottom: 160rpx; }
-.hero { padding: 26rpx 32rpx 28rpx; border-radius: 0 0 20rpx 20rpx; }
-.mb-bar { margin-bottom: 28rpx; }
-.mb-btn { background: rgba(255,255,255,.08); border: 1rpx solid rgba(255,255,255,.16); }
-.sum { font-size: 62rpx; font-weight: 700; }
-.hero-actions { margin-top: 26rpx; }
-.hero-btn { padding: 16rpx 0; border-radius: 10rpx; background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.18); font-size: 24rpx; }
-.goal-card, .chart-card, .advice-card { border: 1rpx solid #edf0f3; border-radius: 14rpx; box-shadow: 0 4rpx 18rpx rgba(28,39,53,.045); }
-.goal-empty { border: 1rpx solid #e3e8ed; }
-.goal-bar { height: 12rpx; border-radius: 6rpx; }
-.goal-fill, .goal-fill.budget, .goal-fill.budget.is-over { background: #536d87; }
-.chart-card { padding-top: 26rpx; }
-.legend-pct { color: #425a73; }
-.advice-refresh { border-radius: 8rpx; }
-.cat-tbl { border: 1rpx solid #edf0f3; box-shadow: 0 4rpx 18rpx rgba(28,39,53,.04); }
-.more-btn { color: #263b55; }
-.fab { width: 92rpx; height: 92rpx; background: #263b55; box-shadow: 0 8rpx 20rpx rgba(29,45,66,.18); }
-.dialog { border-radius: 16rpx; }
-.dialog .input, .dialog .picker { border-radius: 10rpx; }
-.btn-confirm { border-radius: 10rpx; }
-
-/* ===== 每日打卡 ===== */
-.checkin-card { margin-top: 20rpx; }
+/* ===== 每日打卡（在省钱成果卡内） ===== */
+.save-card { margin-top: 20rpx; }
+.save-hero { margin-top: var(--s-2); }
+.save-hero-num { display: block; font-size: 56rpx; font-weight: 700; color: var(--ok); line-height: 1.15; }
+.save-hero-unit { display: block; margin-top: 4rpx; font-size: 22rpx; color: var(--muted); }
+.ck-desc { display: block; margin-top: var(--s-3); }
 .ck-row { display: flex; align-items: center; gap: 0; margin-top: 22rpx; }
 .ck-input {
   flex: 1; height: 68rpx; padding: 0 20rpx; font-size: 26rpx;
@@ -161,6 +156,30 @@ page { background: #f7f8fa; }
 .ck-on   { background: var(--brand); color: #fff; }
 .ck-off  { background: var(--fill); color: var(--muted); }
 .ck-miss { background: transparent; color: #C6CCD6; border: 1rpx solid var(--line); }
+
+/* ===== 省钱记录列表 ===== */
+.rec-head { margin-top: var(--s-4); padding-top: var(--s-3); border-top: 1rpx solid var(--line); }
+.rec-title { font-size: 27rpx; font-weight: 600; color: var(--ink); }
+.rec-row {
+  display: flex; align-items: center; gap: var(--s-2);
+  padding: 20rpx 0; border-bottom: 1rpx solid var(--line);
+}
+.rec-row:last-child { border-bottom: none; }
+.rec-row:active { background: var(--fill); }
+.rec-chip {
+  flex: none; min-width: 88rpx; text-align: center; padding: 6rpx 14rpx;
+  border-radius: var(--r-full); font-size: 21rpx;
+}
+.rec-ck   { background: var(--brand-soft); color: var(--brand); }
+.rec-art  { background: rgba(24, 167, 117, .12); color: var(--ok); }
+.rec-post { background: rgba(242, 112, 95, .12); color: #C75244; }
+.rec-ai   { background: rgba(124, 92, 252, .12); color: #6B4EE0; }
+.rec-main { min-width: 0; }
+.rec-sub { font-size: 25rpx; color: var(--ink-2); }
+.rec-sub-empty { color: var(--muted); }
+.rec-amt { flex: none; font-size: 30rpx; font-weight: 700; color: var(--ok); }
+.empty-rec { padding: var(--s-3) 0 var(--s-2); }
+.rec-meta { display: flex; align-items: center; gap: var(--s-2); margin-bottom: var(--s-3); }
 
 /* ===== 快捷记账 ===== */
 .quick-card { margin-top: 20rpx; }
@@ -191,13 +210,50 @@ page { background: #f7f8fa; }
   display: flex; flex-direction: column; align-items: center; justify-content: center;
 }
 .cal-n { font-size: 20rpx; color: var(--muted); line-height: 1.1; }
-.cal-v { font-size: 18rpx; line-height: 1.2; color: var(--ink-2, #6B7686); }
+.cal-v { font-size: 18rpx; line-height: 1.2; color: var(--ink-2); }
 .cal-empty .cal-n, .cal-empty .cal-v { visibility: hidden; }
 .cal-l0 { background: transparent; }
-.cal-l1 { background: rgba(96, 118, 140, .10); border-radius: 8rpx; }
-.cal-l2 { background: rgba(96, 118, 140, .26); border-radius: 8rpx; }
-.cal-l3 { background: rgba(96, 118, 140, .48); border-radius: 8rpx; }
-.cal-l4 { background: rgba(96, 118, 140, .74); border-radius: 8rpx; }
+.cal-l1 { background: rgba(58, 80, 107, .10); border-radius: 8rpx; }
+.cal-l2 { background: rgba(58, 80, 107, .26); border-radius: 8rpx; }
+.cal-l3 { background: rgba(58, 80, 107, .48); border-radius: 8rpx; }
+.cal-l4 { background: rgba(58, 80, 107, .74); border-radius: 8rpx; }
 .cal-l4 .cal-n, .cal-l4 .cal-v { color: #fff; }
 .cal-foot { margin-top: 14rpx; padding-top: 14rpx; border-top: 1rpx solid var(--line); }
-.goal-hint { display: block; margin-top: 10rpx; font-size: 21rpx; }
+
+/* 记一笔悬浮按钮：账单页的主行动，用正向绿呼应趋势图 */
+.fab { background: var(--ok); box-shadow: 0 8rpx 20rpx rgba(24, 167, 117, .28); }
+
+/* ===== AI 月度解读 ===== */
+.report-card { margin-top: 20rpx; }
+.report-empty { padding: var(--s-2) 0; }
+.report-limited {
+  display: flex; align-items: center; gap: var(--s-1);
+  padding: 14rpx 18rpx; margin-bottom: var(--s-2);
+  background: rgba(245, 166, 35, .1); border-radius: var(--r-sm);
+  color: #B47A12; font-size: 22rpx;
+}
+.report-summary { font-size: 28rpx; color: var(--ink); line-height: 1.7; display: block; }
+.report-point { margin-top: var(--s-3); }
+.rp-title { display: block; font-size: 25rpx; font-weight: 600; color: var(--brand); margin-bottom: 4rpx; }
+.rp-text { display: block; font-size: 25rpx; color: var(--ink-2); line-height: 1.65; }
+.report-advice {
+  margin-top: var(--s-3); padding: var(--s-3);
+  background: rgba(24, 167, 117, .08); border-radius: var(--r-sm);
+}
+.report-advice .rp-title { color: var(--ok); }
+.report-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: var(--s-3); padding-top: var(--s-3); border-top: 1rpx solid var(--line);
+}
+.rep-btn {
+  padding: 10rpx 22rpx; border-radius: var(--r-full);
+  background: var(--fill); font-size: 23rpx; color: var(--brand);
+}
+.rep-btn:active { background: var(--brand-soft); }
+.report-make {
+  display: flex; align-items: center; gap: var(--s-2);
+  margin-top: var(--s-2); padding: 24rpx;
+  border: 1rpx dashed var(--brand-line); border-radius: var(--r-sm);
+  background: var(--brand-soft); color: var(--brand); font-size: 25rpx;
+}
+.report-make:active { opacity: .8; }

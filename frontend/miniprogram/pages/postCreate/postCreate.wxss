@@ -22,3 +22,24 @@ page { background: #f7f8fa; }
 .pc-content { min-height: 280rpx; font-size: 27rpx; }
 .pc-foot button { border-radius: 10rpx; box-shadow: none; }
 .up-add { border-radius: 10rpx; }
+
+/* —— AI 创作助手（与 articleCreate 同一套件） —— */
+.pc-ai {
+  margin-left: auto; display: flex; align-items: center; gap: 8rpx;
+  font-size: 24rpx; color: var(--brand); padding: 8rpx 18rpx;
+  border-radius: var(--r-full); background: var(--brand-soft);
+}
+.pc-ai:active { opacity: .8; }
+.pc-tip { display: block; text-align: center; font-size: 22rpx; color: var(--muted); margin-top: var(--s-2); }
+.ai-dialog { width: 92vw; max-height: 84vh; overflow-y: auto; }
+.ai-modes { margin-bottom: var(--s-3); }
+.ai-hint { font-size: 23rpx; color: var(--muted); margin-bottom: var(--s-3); }
+.form-area {
+  width: 100%; box-sizing: border-box; min-height: 120rpx;
+  background: var(--fill); border-radius: var(--r-sm);
+  padding: 16rpx 24rpx; font-size: 26rpx; color: var(--ink);
+}
+.ai-result { border-top: 1rpx solid var(--line); padding-top: var(--s-3); }
+.ai-result-head { margin-bottom: var(--s-2); }
+.ai-val { font-size: 26rpx; color: var(--ink-2); line-height: 1.6; }
+.ai-val-block { display: block; margin-bottom: 8rpx; }

@@ -1,0 +1,143 @@
+<!-- 执行计划：无 id 历史列表 / 带 id 计划详情 -->
+<view class="container">
+
+  <!-- ===== 历史列表 ===== -->
+  <block wx:if="{{!planId}}">
+    <view class="page-head">
+      <view class="head-copy">
+        <text class="page-title">执行计划</text>
+        <text class="page-subtitle">AI 把攻略拆成步骤，做完一笔一笔记录真实结果</text>
+      </view>
+    </view>
+
+    <view class="card skeleton-card" wx:if="{{loadingList}}">
+      <view class="skeleton" style="height: 30rpx; width: 60%; margin-bottom: 20rpx;"></view>
+      <view class="skeleton" style="height: 30rpx; width: 40%;"></view>
+    </view>
+
+    <block wx:if="{{!loadingList && list.length}}">
+      <view class="card plan-row" wx:for="{{list}}" wx:key="id" bindtap="openPlan" data-id="{{item.id}}">
+        <view class="flex-1 plan-row-main">
+          <text class="plan-row-title ellipsis">{{item.title}}</text>
+          <view class="plan-row-meta">
+            <text class="chip chip-sm {{item.status === '已完成' ? 'chip-ok' : 'chip-grey'}}">{{item.status}}</text>
+            <text class="desc num">{{item.steps_done}}/{{item.steps_total}} 步</text>
+            <text class="desc" wx:if="{{item.actualText}}">实际省 {{item.actualText}} 元</text>
+            <text class="desc" wx:elif="{{item.estText}}">预计省 {{item.estText}} 元</text>
+          </view>
+        </view>
+        <text class="ic ic-arrow arrow"></text>
+      </view>
+    </block>
+
+    <view class="empty" wx:if="{{!loadingList && !list.length}}">
+      <view class="ic ic-spark empty-ic"></view>
+      <text class="empty-text">还没有执行计划</text>
+      <text class="empty-tip">在攻略详情页点「AI 帮我执行」就能生成</text>
+      <view class="btn-primary empty-btn" bindtap="goHome">去逛攻略</view>
+    </view>
+  </block>
+
+  <!-- ===== 计划详情 ===== -->
+  <block wx:if="{{planId && detail}}">
+    <view class="card">
+      <text class="plan-title">{{detail.title}}</text>
+      <view class="plan-meta">
+        <text class="chip chip-sm {{detail.status === '已完成' ? 'chip-ok' : 'chip-grey'}}">{{detail.status}}</text>
+        <text class="desc" bindtap="goArticle">来自攻略 ›</text>
+      </view>
+      <!-- 预计是 AI 算的参考值，实际以用户确认为准 -->
+      <view class="plan-saving" wx:if="{{estText}}">
+        <text class="ps-num num">{{estText}}</text>
+        <text class="ps-label">AI 预计可省（元）· 仅供参考</text>
+      </view>
+    </view>
+
+    <!-- 步骤：勾选即保存 -->
+    <view class="card">
+      <text class="title">执行步骤</text>
+      <view class="step-row" wx:for="{{steps}}" wx:key="index">
+        <view class="step-check {{item.done ? 'on' : ''}}" bindtap="toggleStep" data-i="{{index}}">
+          <text class="ic ic-sm ic-check" wx:if="{{item.done}}"></text>
+        </view>
+        <view class="flex-1">
+          <text class="step-text {{item.done ? 'done' : ''}}">{{item.text}}</text>
+          <text class="desc" wx:if="{{item.note}}">{{item.note}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 购物清单：填实买金额；有关键词才给比价入口（有真实报价才展示价格） -->
+    <view class="card" wx:if="{{shopping.length}}">
+      <text class="title">购物清单</text>
+      <view class="shop-row" wx:for="{{shopping}}" wx:key="index">
+        <view class="step-check {{item.bought ? 'on' : ''}}" bindtap="toggleBought" data-i="{{index}}">
+          <text class="ic ic-sm ic-check" wx:if="{{item.bought}}"></text>
+        </view>
+        <view class="flex-1 shop-main">
+          <view class="flex-between">
+            <text class="step-text">{{item.name}}</text>
+            <text class="desc num" wx:if="{{item.estText}}">预计 {{item.estText}} 元</text>
+          </view>
+          <text class="desc" wx:if="{{item.spec}}">{{item.spec}}</text>
+          <view class="shop-actual">
+            <text class="desc">实买</text>
+            <input class="shop-input num" type="digit" placeholder="填实际花的钱"
+                   value="{{item.actualRaw || (item.actual > 0 ? item.actual : '')}}"
+                   bindinput="onActualInput" bindblur="onActualBlur" data-i="{{index}}" />
+            <text class="desc">元</text>
+          </view>
+        </view>
+      </view>
+      <view class="key-row" wx:if="{{keywords.length}}">
+        <text class="desc">拿去比价：</text>
+        <view class="tag" wx:for="{{keywords}}" wx:key="*this" bindtap="goPrice" data-kw="{{item}}">{{item}}</view>
+      </view>
+    </view>
+
+    <!-- 准备事项 / 注意事项 -->
+    <view class="card" wx:if="{{prep.length || cautions.length}}">
+      <text class="title" wx:if="{{prep.length}}">开始前准备</text>
+      <view class="prep-row" wx:for="{{prep}}" wx:key="*this"><text class="desc">· {{item}}</text></view>
+      <block wx:if="{{cautions.length}}">
+        <text class="title cautions-title" wx:if="{{prep.length}}"></text>
+        <text class="title" wx:else>注意事项</text>
+        <view class="prep-row warn" wx:for="{{cautions}}" wx:key="*this"><text class="desc">! {{item}}</text></view>
+      </block>
+    </view>
+
+    <!-- 预算建议 -->
+    <view class="card" wx:if="{{budgetAdvice}}">
+      <text class="title">预算建议</text>
+      <text class="budget-text">{{budgetAdvice}}</text>
+    </view>
+
+    <!-- 实际节省：弹窗确认后才写进省钱成果 -->
+    <view class="card save-card">
+      <text class="title">执行结果</text>
+      <view class="actual-row" wx:if="{{actualText}}">
+        <text class="actual-num num">{{actualText}}</text>
+        <text class="ps-label">已确认的实际节省（元）· 已进省钱成果</text>
+      </view>
+      <view class="form-item">
+        <text class="form-label">{{actualText ? '再记一笔' : '实际省了多少（元）'}}</text>
+        <input class="form-input" type="digit" placeholder="以你真实省下的为准，预计值不算" placeholder-class="ph"
+               value="{{savingForm.amount}}" data-field="amount" bindinput="onSavingInput" />
+      </view>
+      <view class="form-item">
+        <text class="form-label">备注（选填）</text>
+        <input class="form-input" placeholder="省在哪了" placeholder-class="ph"
+               value="{{savingForm.note}}" data-field="note" bindinput="onSavingInput" maxlength="60" />
+      </view>
+      <view class="btn-primary {{busy ? 'btn-disabled' : ''}}" bindtap="confirmSaving">
+        {{busy ? '提交中…' : '确认记入省钱成果'}}
+      </view>
+      <view class="share-btn" bindtap="sharePost">
+        <text class="ic ic-sm ic-comment"></text><text>去社区分享执行经验</text>
+      </view>
+      <text class="desc share-hint">生成的是草稿，发布前你可以修改</text>
+    </view>
+  </block>
+
+  <view class="list-padding"></view>
+</view>

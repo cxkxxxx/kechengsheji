@@ -16,6 +16,16 @@
 }
 .action:active { background: var(--fill); border-radius: var(--r-sm); }
 .action.active { color: var(--brand); }
+.action-save { color: var(--ok); border-color: rgba(24,167,117,.4); border-radius: var(--r-sm); }
+
+.loop-hint {
+  display: block; margin: var(--s-3) var(--gap) 0; font-size: 22rpx;
+  color: var(--muted); line-height: 1.6;
+}
+
+.save-dialog { z-index: 95; }
+.save-src { display: block; margin-bottom: var(--s-3); font-size: 23rpx; color: var(--muted); }
+.save-note { display: block; margin-top: 4rpx; font-size: 21rpx; color: var(--muted); line-height: 1.5; }
 
 .comments-section { margin: var(--s-4) var(--gap) 0; }
 .section-title-pad { font-size: 28rpx; font-weight: 600; margin-bottom: var(--s-2); }
@@ -45,4 +55,4 @@ page { background: #f7f8fa; }
 .comments-section { margin-top: 28rpx; }
 .comment-item { border: 1rpx solid #edf0f3; border-radius: 10rpx; }
 .comment-bar { padding-bottom: calc(16rpx + env(safe-area-inset-bottom)); }
-.send-btn { border-radius: 10rpx; background: #263b55; box-shadow: none; }
+.send-btn { border-radius: 10rpx; background: var(--brand); box-shadow: none; }

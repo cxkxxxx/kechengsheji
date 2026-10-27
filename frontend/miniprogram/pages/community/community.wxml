@@ -1,24 +1,26 @@
-<!-- 社区页：省钱经验分享，带图卡片 -->
+<!-- 社区页：内容优先的信息流，参考主流社区产品的排版 -->
 <view class="container">
-  <view class="hero">
-    <view class="flex-between">
-      <view>
-        <text class="hero-title">省钱社区</text>
-        <text class="hero-sub">大家实测有效的省钱路子，都在这儿</text>
-      </view>
-      <view class="comm-post-btn" bindtap="goCreatePost">
-        <text class="ic ic-plus ic-sm ic-light"></text>
-        <text>发帖</text>
-      </view>
+  <!-- 顶栏：只留阅读标题。发布收进右下角唯一 FAB，不跟正文抢一行 -->
+  <view class="top-bar">
+    <view class="head-copy">
+      <text class="head-title">省钱社区</text>
+      <text class="head-sub">大家实测有效的省钱路子，都在这儿</text>
     </view>
   </view>
+
+  <!-- 标签筛选条：只放已有帖子真实用到的标签，没标签就不显示 -->
+  <scroll-view scroll-x class="tag-bar" wx:if="{{tags.length > 1}}" enhanced show-scrollbar="{{false}}">
+    <view class="tag-chip {{currentTag === item ? 'active' : ''}}"
+          wx:for="{{tags}}" wx:key="*this"
+          bindtap="pickTag" data-tag="{{item}}">{{item}}</view>
+  </scroll-view>
 
   <scroll-view scroll-y class="refresh-list" refresher-enabled
                refresher-triggered="{{refreshing}}" bindrefresherrefresh="onRefresherRefresh">
     <block wx:if="{{loading}}">
       <view class="card post-card" wx:for="{{[1,2,3]}}" wx:key="*this">
-        <view class="skeleton" style="height: 32rpx; width: 65%;"></view>
-        <view class="skeleton" style="height: 24rpx; width: 95%; margin-top: 18rpx;"></view>
+        <view class="skeleton" style="height: 56rpx; width: 55%;"></view>
+        <view class="skeleton" style="height: 28rpx; width: 92%; margin-top: 20rpx;"></view>
         <view class="skeleton" style="height: 160rpx; width: 100%; margin-top: 18rpx;"></view>
       </view>
     </block>
@@ -26,15 +28,22 @@
     <block wx:else>
       <view class="card post-card card-tap" wx:for="{{posts}}" wx:key="id"
             bindtap="goPostDetail" data-id="{{item.id}}">
+        <!-- 作者行：头像 + 昵称 + 时间 -->
         <view class="post-top">
-          <view class="post-avatar"><text class="ic ic-spark ic-sm"></text></view>
-          <text class="post-title ellipsis-2 flex-1">{{item.title}}</text>
+          <image class="p-avatar" src="{{item.avatarUrl || '/images/logo.jpg'}}" mode="aspectFill" />
+          <view class="p-who flex-1">
+            <text class="p-name ellipsis">{{item.author}}</text>
+            <text class="p-time">{{item.timeText}}</text>
+          </view>
         </view>
-        <text class="post-content ellipsis-3" wx:if="{{item.content}}">{{item.content}}</text>
 
-        <!-- 图片：卡片最多 4 张，第 4 张压 +N -->
+        <text class="post-title ellipsis-2">{{item.title}}</text>
+        <text class="post-content ellipsis-2" wx:if="{{item.content}}">{{item.content}}</text>
+
+        <!-- 图片：卡片最多 4 张，第 4 张压 +N；点图全屏预览 -->
         <view class="{{item.gridCls}}" wx:if="{{item.gridShown.length}}">
-          <view class="img-cell" wx:for="{{item.gridShown}}" wx:for-item="img" wx:for-index="gi" wx:key="*this">
+          <view class="img-cell" wx:for="{{item.gridShown}}" wx:for-item="img" wx:for-index="gi" wx:key="*this"
+                catchtap="previewPostImage" data-urls="{{item.gridShown}}" data-current="{{img}}">
             <image src="{{img}}" mode="aspectFill" />
             <view class="img-more" wx:if="{{gi === item.gridShown.length - 1 && item.gridMore}}">+{{item.gridMore}}</view>
           </view>
@@ -48,16 +57,15 @@
             <text class="ic {{item.liked ? 'ic-heart-on' : 'ic-heart'}} ic-sm"></text>
             <text class="num">{{item.likes || 0}}</text>
           </view>
-          <view class="meta-item">
+          <view class="meta-item" catchtap="goPostDetail" data-id="{{item.id}}">
             <text class="ic ic-comment ic-sm"></text><text class="num">{{item.comments_count || 0}}</text>
           </view>
-          <text class="desc post-time">{{item.timeText}}</text>
         </view>
       </view>
 
       <view class="empty" wx:if="{{posts.length === 0}}">
         <text class="ic ic-comment empty-ic"></text>
-        <text class="empty-text">还没有人发帖</text>
+        <text class="empty-text">{{currentTag === '全部' ? '还没有人发帖' : '这个标签下还没有帖子'}}</text>
         <text class="desc empty-tip">分享一条你的省钱经验，带张图更好</text>
         <view class="btn-primary empty-btn" bindtap="goCreatePost">去发帖</view>
       </view>
@@ -65,5 +73,8 @@
     <view class="list-padding"></view>
   </scroll-view>
 
-  <view class="fab" bindtap="goCreatePost"><text class="ic ic-plus"></text></view>
+  <!-- 发布：右下角唯一悬浮钮，与底部导航留出安全距离 -->
+  <view class="fab fab-post" bindtap="goCreatePost" aria-label="发帖">
+    <text class="ic ic-plus ic-lg ic-light"></text>
+  </view>
 </view>

@@ -1,46 +1,76 @@
-/* 社区页 */
-.refresh-list { height: calc(100vh - 200rpx); }
+/* 社区页：内容优先的信息流。通用件（card/chip/imgs 九宫格/empty/skeleton/ic）在 app.wxss */
 
-.comm-post-btn {
-  display: flex; align-items: center; gap: 8rpx; flex: none;
-  padding: 12rpx 26rpx; border-radius: var(--r-full);
-  background: rgba(255, 255, 255, .18); color: #fff; font-size: 26rpx; font-weight: 500;
+page { background: var(--bg); }
+.container {
+  height: 100vh; min-height: 0;
+  display: flex; flex-direction: column; overflow: hidden;
+  padding: 0 0 120rpx;
 }
-.comm-post-btn:active { background: rgba(255, 255, 255, .32); }
 
-.post-card { padding: var(--s-4); }
-.post-top { display: flex; align-items: flex-start; gap: var(--s-2); margin-bottom: 12rpx; }
-.post-avatar {
-  width: 52rpx; height: 52rpx; border-radius: var(--r-sm); flex: none;
-  background: var(--brand-soft); display: flex; align-items: center; justify-content: center;
+/* —— 顶栏：轻文案 + 圆形发帖钮（全页唯一发帖入口） —— */
+.top-bar {
+  flex: none;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 34rpx 32rpx 20rpx;
 }
-.post-title { font-size: 31rpx; font-weight: 600; color: var(--ink); line-height: 1.45; }
-.post-content { font-size: 26rpx; color: var(--ink-2); line-height: 1.6; display: block; }
+.head-copy { min-width: 0; }
+.head-title { display: block; font-size: 36rpx; font-weight: 700; color: var(--ink); }
+.head-sub { display: block; margin-top: 6rpx; font-size: 23rpx; color: var(--muted); }
 
-.post-tags { display: flex; flex-wrap: wrap; gap: var(--s-1); margin-top: var(--s-3); }
+/* 发布：右下角唯一 FAB（基础 .fab 在 app.wxss），绿色=行动色，与 tabbar 留出距离 */
+.fab-post { background: var(--ok); box-shadow: 0 8rpx 20rpx rgba(24, 167, 117, .3); }
+
+/* —— 标签筛选条：只放真实存在的标签 —— */
+.tag-bar {
+  flex: none;
+  white-space: nowrap;
+  padding: 6rpx 32rpx 16rpx;
+}
+.tag-chip {
+  display: inline-flex; align-items: center;
+  margin-right: 14rpx; padding: 12rpx 28rpx;
+  border-radius: var(--r-full); font-size: 25rpx; color: var(--ink-2);
+  background: var(--card); border: 1rpx solid var(--line);
+  transition: background .15s ease, color .15s ease;
+}
+.tag-chip.active {
+  background: var(--brand); border-color: var(--brand); color: #fff; font-weight: 500;
+}
+
+/* —— 信息流 —— */
+.refresh-list { flex: 1; height: 0; padding-top: 8rpx; }
+
+.post-card {
+  margin: 0 24rpx 16rpx; padding: 24rpx 26rpx;
+  border: 1rpx solid #EDF0F3; border-radius: 16rpx;
+  box-shadow: 0 4rpx 18rpx rgba(28, 39, 53, .045);
+}
+
+/* 作者行：头像 + 昵称 + 时间，内容主体的“署名” */
+.post-top { display: flex; align-items: center; gap: 16rpx; margin-bottom: 16rpx; }
+.p-avatar {
+  width: 60rpx; height: 60rpx; border-radius: 50%; flex: none;
+  background: var(--brand-soft);
+}
+.p-who { display: flex; flex-direction: column; gap: 2rpx; }
+.p-name { font-size: 26rpx; font-weight: 600; color: var(--ink); }
+.p-time { font-size: 21rpx; color: var(--muted); }
+
+/* 正文：标题醒目，摘要两行截断，点进详情看全文 */
+.post-title { display: block; font-size: 30rpx; font-weight: 600; color: var(--ink); line-height: 1.45; }
+.post-content { display: block; margin-top: 8rpx; font-size: 25rpx; color: var(--ink-2); line-height: 1.6; }
+
+/* 图片九宫格的间距贴卡片一点（.imgs 尺寸在 app.wxss） */
+.post-card .imgs { margin-top: 18rpx; }
+
+/* 标签 & 互动行 */
+.post-tags { display: flex; flex-wrap: wrap; gap: 10rpx; margin-top: 16rpx; }
 .post-meta {
-  display: flex; align-items: center; gap: var(--s-4);
-  margin-top: var(--s-3); padding-top: var(--s-3); border-top: 1rpx solid var(--line);
+  display: flex; align-items: center; gap: 48rpx;
+  margin-top: 18rpx; padding-top: 16rpx; border-top: 1rpx solid var(--line);
 }
-.meta-item { display: flex; align-items: center; gap: 8rpx; font-size: 24rpx; color: var(--muted); }
-.like-btn { display: flex; align-items: center; gap: 8rpx; font-size: 24rpx; color: var(--muted); padding: 4rpx 0; }
-.like-btn.liked { color: var(--danger); }
-.like-btn:active { opacity: .6; }
-.post-time { margin-left: auto; font-size: 22rpx; }
-
-/* 统一为克制的内容社区布局 */
-page { background: #f7f8fa; }
-.container { height: 100vh; min-height: 0; display: flex; flex-direction: column; overflow: hidden; padding: 0 0 120rpx; }
-.hero { flex: none; padding: 30rpx 36rpx 34rpx; border-radius: 0 0 24rpx 24rpx; }
-.hero-title { font-size: 40rpx; }
-.hero-sub { font-size: 23rpx; margin-top: 8rpx; }
-.comm-post-btn { padding: 12rpx 22rpx; border-radius: 10rpx; background: rgba(255,255,255,.13); border: 1rpx solid rgba(255,255,255,.24); }
-.refresh-list { flex: 1; height: 0; padding-top: 18rpx; background: #f7f8fa; }
-.post-card { margin: 0 24rpx 16rpx; padding: 22rpx; border: 1rpx solid #edf0f3; border-radius: 14rpx; box-shadow: 0 4rpx 18rpx rgba(28,39,53,.045); }
-.post-top { margin-bottom: 14rpx; }
-.post-avatar { width: 52rpx; height: 52rpx; border-radius: 12rpx; background: #edf2f6; }
-.post-avatar .ic { opacity: .72; }
-.post-title { font-size: 30rpx; }
-.post-content { color: #536171; font-size: 25rpx; }
-.post-meta { margin-top: 18rpx; padding-top: 16rpx; }
-.fab { right: 34rpx; bottom: 156rpx; width: 92rpx; height: 92rpx; }
+.meta-item { display: flex; align-items: center; gap: 8rpx; }
+.like-btn { display: flex; align-items: center; gap: 8rpx; padding: 4rpx 0; }
+.like-btn.liked .num { color: var(--danger); }
+.like-btn:active, .meta-item:active { opacity: .6; }
+.num { font-size: 24rpx; color: var(--muted); }

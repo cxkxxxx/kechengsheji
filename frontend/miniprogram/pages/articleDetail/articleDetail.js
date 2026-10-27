@@ -32,7 +32,10 @@ Page({
     comments: [],
     commentText: '',
     favorited: false,
-    liked: false
+    liked: false,
+    showSaveDialog: false,
+    saveForm: { amount: '', note: '' },
+    execLoading: false
   },
 
   onLoad(options) {
@@ -82,6 +85,23 @@ Page({
     } catch (e) { console.error(e) }
   },
 
+  // AI 帮我执行：把这条攻略拆成执行计划，生成后跳到计划页勾进度
+  async makeExecPlan() {
+    if (this.data.execLoading) return
+    if (!app.globalData.token) {
+      wx.showToast({ title: '先登录再生成执行计划', icon: 'none' })
+      return
+    }
+    this.setData({ execLoading: true })
+    try {
+      const d = await request('/ai/exec-plan', 'POST', { article_id: parseInt(this.articleId) }, true)
+      this.setData({ execLoading: false })
+      wx.navigateTo({ url: '/pages/plan/plan?id=' + d.id })
+    } catch (e) {
+      this.setData({ execLoading: false })
+    }
+  },
+
   onCommentInput(e) {
     this.setData({ commentText: e.detail.value })
   },
@@ -101,6 +121,49 @@ Page({
       const comments = [comment, ...this.data.comments]
       this.setData({ comments, commentText: '' })
       wx.showToast({ title: '评论成功', icon: 'none' })
+    } catch (e) { console.error(e) }
+  },
+
+  // 问 AI：把攻略标题和正文要点带过去，用户不用重新复制粘贴
+  askAI() {
+    const a = this.data.article || {}
+    const brief = (a.content || '').replace(/\s+/g, ' ').slice(0, 120)
+    app.globalData.pendingAsk = {
+      agent: 'coupon',
+      question: '我在看攻略《' + (a.title || '') + '》' + (brief ? '，内容大意：' + brief : '') +
+                '。帮我把它变成可执行的步骤和购物清单，按我的情况调整方案。'
+    }
+    wx.switchTab({ url: '/pages/assistant/assistant' })
+  },
+
+  // —— 记一笔实际省钱（写入 checkins，来源=攻略，关联本文） ——
+  openSaveDialog() {
+    this.setData({
+      showSaveDialog: true,
+      saveForm: { amount: '', note: '' }
+    })
+  },
+
+  closeSaveDialog() { this.setData({ showSaveDialog: false }) },
+
+  onSaveInput(e) {
+    this.setData({ ['saveForm.' + e.currentTarget.dataset.field]: e.detail.value })
+  },
+
+  async submitSave() {
+    const value = parseFloat(this.data.saveForm.amount)
+    if (!(value > 0)) {
+      wx.showToast({ title: '请输入大于 0 的金额', icon: 'none' })
+      return
+    }
+    try {
+      await request('/checkin/do', 'POST', {
+        saved_amount: Math.round(value * 100) / 100,
+        note: this.data.saveForm.note || '',
+        source: '攻略', ref_type: 'article', ref_id: parseInt(this.articleId)
+      })
+      this.setData({ showSaveDialog: false })
+      wx.showToast({ title: '已记入省钱成果', icon: 'success' })
     } catch (e) { console.error(e) }
   }
 })

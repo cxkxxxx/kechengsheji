@@ -1,12 +1,12 @@
 page {
-  --navy: #21334b;
-  --navy-soft: #eef2f6;
-  --ink: #1c2735;
-  --muted: #7a8593;
-  --line: #e8ecf0;
-  --page-bg: #f7f8fa;
-  background: var(--page-bg);
+  /* 页内旧变量名全部指回全局 token，改主题只动 app.wxss */
+  --navy: var(--brand);
+  --navy-soft: var(--brand-soft);
+  --page-bg: var(--bg);
+  background: var(--bg);
 }
+
+.quick-entries { margin: 0 36rpx 22rpx; }
 
 .container {
   height: 100vh;
@@ -64,8 +64,8 @@ page {
   padding: 0 24rpx;
   height: 78rpx;
   border: 1rpx solid var(--line);
-  border-radius: 16rpx;
-  background: #f5f7f9;
+  border-radius: var(--r-md);
+  background: var(--fill);
 }
 .search-bar .ic { opacity: .72; }
 .search-input {
@@ -131,12 +131,12 @@ page {
   display: flex;
   align-items: stretch;
   min-height: 184rpx;
-  margin: 0 24rpx 18rpx;
+  margin: 0 24rpx 16rpx;
   padding: 18rpx;
-  border: 1rpx solid #edf0f3;
-  border-radius: 14rpx;
+  border: 1rpx solid var(--line);
+  border-radius: var(--r-md);
   background: #fff;
-  box-shadow: 0 4rpx 18rpx rgba(28, 39, 53, .045);
+  box-shadow: var(--sh-1);
 }
 .card-tap:active { background: #fafbfd; transform: scale(.995); }
 .thumb-wrap { width: 208rpx; height: 156rpx; flex: none; }

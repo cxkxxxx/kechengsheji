@@ -1,0 +1,62 @@
+/* 执行计划页 */
+.page-head { padding: 20rpx var(--gap) var(--s-2); }
+.page-title { font-size: 34rpx; font-weight: 700; color: var(--ink); }
+.page-subtitle { display: block; margin-top: 6rpx; font-size: 23rpx; color: var(--muted); }
+
+/* 列表 */
+.plan-row { display: flex; align-items: center; gap: var(--s-2); padding: var(--s-3) var(--s-4); }
+.plan-row-main { min-width: 0; }
+.plan-row-title { font-size: 28rpx; font-weight: 500; }
+.plan-row-meta { display: flex; align-items: center; gap: var(--s-2); margin-top: 10rpx; flex-wrap: wrap; }
+.arrow { color: var(--muted); }
+
+/* 详情头部 */
+.plan-title { font-size: 32rpx; font-weight: 700; color: var(--ink); line-height: 1.4; display: block; }
+.plan-meta { display: flex; align-items: center; gap: var(--s-3); margin-top: 10rpx; }
+.plan-saving { margin-top: var(--s-3); padding-top: var(--s-3); border-top: 1rpx solid var(--line); }
+.ps-num { font-size: 40rpx; font-weight: 700; color: var(--brand); }
+.ps-label { display: block; margin-top: 4rpx; font-size: 21rpx; color: var(--muted); }
+
+/* 步骤 */
+.step-row { display: flex; gap: var(--s-2); padding: 18rpx 0; border-bottom: 1rpx solid var(--line); }
+.step-row:last-child { border-bottom: none; }
+.step-check {
+  flex: none; width: 44rpx; height: 44rpx; border-radius: 50%;
+  border: 2rpx solid var(--line); margin-top: 4rpx;
+  display: flex; align-items: center; justify-content: center; color: #fff;
+}
+.step-check.on { background: var(--ok); border-color: var(--ok); }
+.step-text { font-size: 27rpx; color: var(--ink); line-height: 1.5; }
+.step-text.done { color: var(--muted); text-decoration: line-through; }
+
+/* 清单 */
+.shop-row { display: flex; gap: var(--s-2); padding: 18rpx 0; border-bottom: 1rpx solid var(--line); }
+.shop-row:last-child { border-bottom: none; }
+.shop-main { min-width: 0; }
+.shop-actual { display: flex; align-items: center; gap: var(--s-1); margin-top: 10rpx; }
+.shop-input {
+  width: 180rpx; height: 56rpx; background: var(--fill); border-radius: var(--r-sm);
+  padding: 0 16rpx; font-size: 26rpx; color: var(--ink);
+}
+.key-row { display: flex; align-items: center; gap: var(--s-1); flex-wrap: wrap; margin-top: var(--s-2); }
+
+/* 准备/注意 */
+.prep-row { padding: 8rpx 0; }
+.prep-row.warn .desc { color: #B47A12; }
+.cautions-title { margin-top: var(--s-2); }
+.budget-text { font-size: 26rpx; color: var(--ink-2); line-height: 1.7; display: block; margin-top: 8rpx; }
+
+/* 执行结果 */
+.save-card .btn-primary { margin-top: var(--s-2); }
+.actual-row { margin: var(--s-2) 0; }
+.actual-num { font-size: 44rpx; font-weight: 700; color: var(--ok); }
+.share-btn {
+  display: flex; align-items: center; justify-content: center; gap: var(--s-1);
+  margin-top: var(--s-2); padding: 20rpx 0;
+  border: 1rpx solid var(--line); border-radius: var(--r-sm);
+  font-size: 26rpx; color: var(--brand);
+}
+.share-btn:active { background: var(--fill); }
+.share-hint { display: block; text-align: center; margin-top: 10rpx; font-size: 21rpx; }
+
+.container > .card { margin: 18rpx 24rpx; padding: 24rpx; }

@@ -36,6 +36,53 @@
       <view class="ic ic-sm {{favorited ? 'ic-check' : 'ic-plus'}}"></view>
       <text class="act-label">{{favorited ? '已收藏' : '收藏'}}</text>
     </view>
+    <view class="act" bindtap="askAI">
+      <view class="ic ic-sm ic-spark"></view>
+      <text class="act-label">问 AI</text>
+    </view>
+    <view class="act act-save" bindtap="openSaveDialog">
+      <view class="ic ic-sm ic-wallet"></view>
+      <text class="act-label">记省钱</text>
+    </view>
+  </view>
+
+  <text class="loop-hint">按这条攻略执行后真的省了钱？点「记省钱」记下实际金额，账单页的省钱成果会跟着涨</text>
+
+  <!-- AI 帮我执行：把攻略拆成分步计划，勾进度、记实买、确认实际节省 -->
+  <view class="exec-entry" bindtap="makeExecPlan">
+    <view class="flex gap-2 flex-1">
+      <view class="ic ic-spark"></view>
+      <view class="flex-col flex-1">
+        <text class="exec-title">{{execLoading ? 'AI 正在拆解这条攻略…' : 'AI 帮我执行'}}</text>
+        <text class="desc">{{execLoading ? '生成步骤、购物清单和预算建议' : '该买什么、先做什么、注意什么，拆成分步计划'}}</text>
+      </view>
+    </view>
+    <view class="ic ic-arrow"></view>
+  </view>
+
+  <!-- 记一笔省钱弹窗：金额在弹窗里确认后才提交 -->
+  <view class="mask" wx:if="{{showSaveDialog}}" bindtap="closeSaveDialog"></view>
+  <view class="dialog save-dialog" wx:if="{{showSaveDialog}}">
+    <view class="dialog-head">
+      <text class="dialog-title">记一笔实际省钱</text>
+      <view class="dialog-x" bindtap="closeSaveDialog"><view class="ic ic-sm ic-close"></view></view>
+    </view>
+    <text class="save-src">来源：攻略《{{article.title}}》</text>
+    <view class="form-item">
+      <text class="label">实际省了多少（元）</text>
+      <input class="input" type="digit" placeholder="例如 12.5" placeholder-class="ph"
+             value="{{saveForm.amount}}" bindinput="onSaveInput" data-field="amount" />
+    </view>
+    <view class="form-item">
+      <text class="label">省在哪了（选填）</text>
+      <input class="input" placeholder="如：按攻略换套餐，话费少交 12" placeholder-class="ph"
+             value="{{saveForm.note}}" bindinput="onSaveInput" data-field="note" maxlength="60" />
+    </view>
+    <text class="save-note">只记你确认真实发生的节省；攻略里估算的「约省」不算数</text>
+    <view class="dialog-btns">
+      <view class="btn-cancel" bindtap="closeSaveDialog">取消</view>
+      <view class="btn-confirm" bindtap="submitSave">确认记账</view>
+    </view>
   </view>
 
   <!-- 评论区 -->

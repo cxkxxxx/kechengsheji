@@ -2,10 +2,12 @@
 const { request } = require('../../utils/request')
 const { currentMonth, formatDate, formatMoney } = require('../../utils/util')
 
-// 分类配色：图例、进度条、饼图共用一份，避免 WXML 里再写一长串三元表达式
+// 分类配色：图例、进度条、环形图共用一份。
+// 参考成熟记账 App 的做法用鲜亮的多彩色，占比图上一眼能区分；
+// 餐饮固定绿色主视觉（正向色），其余按冷暖隔开避免相邻色混淆。
 const CAT_COLORS = {
-  '餐饮': '#60768C', '购物': '#8797A7', '交通': '#A6B1BC',
-  '生活': '#73897F', '娱乐': '#9B8974', '医疗': '#778A9A',
+  '餐饮': '#18A775', '购物': '#4E8FF7', '交通': '#7C5CFC',
+  '生活': '#EF7BAE', '娱乐': '#F2705F', '医疗': '#F5A623',
   '其他': '#C2C9D0'
 }
 const PREVIEW_COUNT = 8   // 列表默认只展示最近几笔，其余点开
@@ -45,6 +47,11 @@ Page({
     form: { amount: '', category: '餐饮', source: '', pay_channel: '', order_no: '', bill_date: '' },
     // 每日打卡状态
     ck: { amount: '', note: '', cells: [], count: 0, checked: false, todaySaved: '', submitting: false },
+    // 本月省钱记录明细（来源/备注/关联内容，长按可删）
+    records: [],
+    recordsTotal: 0,
+    editingRecord: null,
+    recForm: { amount: '', note: '' },
     // 快捷记账预置项：金额取常见真实价位，点一下就入账
     quickItems: [
       { label: '早餐', cat: '餐饮', amount: 8, ic: 'ic-wallet' },
@@ -55,7 +62,11 @@ Page({
       { label: '日用品', cat: '购物', amount: 35, ic: 'ic-plus' }
     ],
     // 消费日历热力图
-    cal: { cells: [], max: '', picked: false, pickedLabel: '', pickedAmount: '', pickedCount: 0 }
+    cal: { cells: [], max: '', picked: false, pickedLabel: '', pickedAmount: '', pickedCount: 0 },
+    // AI 月度解读：data=最近一次报告，list=历史报告（含当月筛选）
+    report: { loading: false, data: null, empty: false, message: '', list: [] },
+    // 近 6 个月支出趋势（柱状图）
+    trend: { labels: [], values: [] }
   },
 
   onLoad() {
@@ -104,6 +115,17 @@ Page({
       }))
       const view = Object.assign({}, analysis || {}, { categories: cats })
 
+      // 近 6 个月趋势：/bills/months 本来就带每个月的 total，
+      // 没数据的月份补 0（0 是真实的「没花」，不是编的），最后一个月 = 当前查看的月份
+      const monthsArr = months || []
+      const tLabels = [], tValues = []
+      for (let i = 5; i >= 0; i--) {
+        const m = shiftMonthStr(month, -i)
+        const hit = monthsArr.filter(x => x.month === m)[0]
+        tLabels.push(parseInt(m.slice(5), 10) + '月')
+        tValues.push(hit ? (parseFloat(hit.total) || 0) : 0)
+      }
+
       this.setData({
         bills: list,
         shownBills: list.slice(0, PREVIEW_COUNT),
@@ -120,14 +142,18 @@ Page({
         }),
         analysis: view,
         months: months || [],
+        trend: { labels: tLabels, values: tValues },
         plan: this._decoratePlan(month === currentMonth() ? plan : null),
         hasBills: list.length > 0,
         loading: false
       }, () => {
         this.drawPieChart(cats)   // canvas 节点要等这一帧渲染完才存在
+        this.drawTrend()
         this._buildCal(list, month)
       })
       this.loadCheckin(month)
+      this.loadRecords(month)
+      this.loadReportList(month)
     } catch (e) {
       this.setData({ loading: false })
       console.error(e)
@@ -219,6 +245,132 @@ Page({
   onCkAmount(e) { this.setData({ 'ck.amount': e.detail.value }) },
   onCkNote(e) { this.setData({ 'ck.note': e.detail.value }) },
 
+  // 本月省钱记录：打卡/攻略/社区经验/AI方案 都在这份流水里，长按可删
+  async loadRecords(month) {
+    try {
+      const d = await request('/checkin/records?month=' + month, 'GET')
+      this.setData({
+        records: (d.records || []).map(r => Object.assign({}, r, {
+          amountText: formatMoney(r.saved_amount),
+          dayShort: r.day.slice(5),
+          // 备注和来源内容拼成一行副标题，别让列表行太高
+          subText: [r.note, r.ref_title ? '来自「' + r.ref_title + '」' : ''].filter(Boolean).join(' · ')
+        })),
+        recordsTotal: formatMoney(d.total || 0)
+      })
+    } catch (e) { console.error(e) }
+  },
+
+  onRecInput(e) {
+    this.setData({ ['recForm.' + e.currentTarget.dataset.field]: e.detail.value })
+  },
+
+  openRecordEdit(e) {
+    const id = e.currentTarget.dataset.id
+    const r = this.data.records.filter(x => x.id === id)[0]
+    if (!r) return
+    this.setData({
+      editingRecord: r,
+      recForm: { amount: String(r.saved_amount), note: r.note || '' }
+    })
+  },
+
+  closeRecordEdit() { this.setData({ editingRecord: null }) },
+
+  async saveRecordEdit() {
+    const r = this.data.editingRecord
+    if (!r) return
+    const v = parseFloat(this.data.recForm.amount)
+    if (!(v > 0)) {
+      wx.showToast({ title: '金额要大于 0', icon: 'none' })
+      return
+    }
+    try {
+      await request('/checkin/records/' + r.id, 'PUT', {
+        saved_amount: Math.round(v * 100) / 100,
+        note: this.data.recForm.note || ''
+      })
+      this.setData({ editingRecord: null })
+      wx.showToast({ title: '已更新', icon: 'success' })
+      this.loadData(true)
+    } catch (e) {
+      wx.showToast({ title: e.message || '更新失败', icon: 'none' })
+    }
+  },
+
+  removeRecord(e) {
+    const id = e.currentTarget.dataset.id
+    const r = this.data.records.filter(x => x.id === id)[0]
+    const that = this
+    wx.showModal({
+      title: '删除这条省钱记录？',
+      content: r ? (r.day + ' · ' + formatMoney(r.saved_amount) + ' 元' + (r.note ? ' · ' + r.note : '')) : '',
+      confirmText: '删除', confirmColor: '#FF6B6B',
+      success(res) {
+        if (!res.confirm) return
+        request('/checkin/records/' + id, 'DELETE').then(() => {
+          wx.showToast({ title: '已删除', icon: 'success' })
+          that.loadData(true)   // 月度累计和总节省都由后端重算，前端整体刷
+        }).catch(err => console.error(err))
+      }
+    })
+  },
+
+  // ---------- AI 月度解读：金额统计由后端程序算好，AI 只写解读 ----------
+  loadReportList(month) {
+    // 换月份就切到那个月的历史报告；当前展示的报告不属于这个月就收起来
+    request('/ai/bill-reports?month=' + month, 'GET').then(d => {
+      const list = (d.items || []).map(r => Object.assign({}, r, {
+        label: r.month + ' · ' + (r.created_at || '')
+      }))
+      this.setData({
+        'report.list': list,
+        'report.data': (this.data.report.data && this.data.report.data.month === month)
+          ? this.data.report.data : null,
+        'report.empty': false, 'report.message': ''
+      })
+    }).catch(e => console.error(e))
+  },
+
+  async makeReport() {
+    if (this.data.report.loading) return
+    this.setData({ 'report.loading': true, 'report.empty': false, 'report.message': '' })
+    try {
+      const d = await request('/ai/bill-report', 'POST', { month: this.data.month }, true)
+      if (d.empty) {
+        this.setData({ 'report.loading': false, 'report.empty': true, 'report.message': d.message || '' })
+      } else {
+        this.setData({
+          report: Object.assign({}, this.data.report, { loading: false, data: d, empty: false })
+        })
+        this.loadReportList(this.data.month)
+      }
+    } catch (e) {
+      this.setData({ 'report.loading': false })
+    }
+  },
+
+  pickReport(e) {
+    const it = this.data.report.list[e.detail.value]
+    if (!it) return
+    request('/ai/bill-reports/' + it.id, 'GET').then(d => {
+      this.setData({ 'report.data': d })
+    }).catch(err => console.error(err))
+  },
+
+  // 带着报告结论去 AI 助手追问（问答走已有的 agent，不另起接口）
+  askReportAI() {
+    const d = this.data.report.data
+    const s = (d && d.stats) || {}
+    const app = getApp()
+    app.globalData.pendingAsk = {
+      agent: 'budget',
+      question: '刚看了 ' + (d ? d.month : this.data.month) + ' 的 AI 解读，本月总支出 '
+        + formatMoney(s.total || 0) + ' 元。帮我详细说说：本月主要开销在哪，哪些分类和上月比变化最大，预算该怎么调？'
+    }
+    wx.switchTab({ url: '/pages/assistant/assistant' })
+  },
+
   async submitCheckin() {
     if (this.data.ck.submitting) return
     const v = parseFloat(this.data.ck.amount)
@@ -287,6 +439,8 @@ Page({
       budget_over: over,
       budget_overText: overText,
       budget_perDay: perDay,
+      budget_left: limit > 0 ? formatMoney(Math.max(0, limit - spend)) : '',
+      budget_overAmt: over ? formatMoney(spend - limit) : '',
       days_left: daysLeft,
       spend: formatMoney(spend),
       saved_amount: formatMoney(plan.saved_amount)
@@ -376,39 +530,136 @@ Page({
     }
   },
 
-  // 画环形占比图
+  // 画分类占比环形图：留缝的分段圆环 + 环外百分比标签 + 中心总额
   drawPieChart(categories) {
     const cats = categories || this._pieCats
     if (!cats || !cats.length) return
+    this._pieCats = cats
     const ctx = wx.createCanvasContext('billPie', this)
     const total = cats.reduce((s, c) => s + c.amount, 0)
-    const cx = 150, cy = 150, r = 132
+    const cx = 150, cy = 150, r = 108
     let start = -Math.PI / 2
 
     ctx.clearRect(0, 0, 300, 300)
     if (total <= 0) { ctx.draw(); return }
     cats.forEach(cat => {
-      const angle = (cat.amount / total) * 2 * Math.PI
-      ctx.beginPath()
-      ctx.moveTo(cx, cy)
-      ctx.arc(cx, cy, r, start, start + angle)
-      ctx.closePath()
-      ctx.setFillStyle(cat.color || CAT_COLORS[cat.name] || '#B0A8A8')
-      ctx.fill()
+      const frac = cat.amount / total
+      const angle = frac * 2 * Math.PI
+      if (frac > 0) {
+        // 段与段之间留一道白缝，比实心圆环精致
+        const pad = cats.length > 1 ? 0.016 : 0
+        ctx.beginPath()
+        ctx.moveTo(cx, cy)
+        ctx.arc(cx, cy, r, start + pad, start + angle - pad)
+        ctx.closePath()
+        ctx.setFillStyle(cat.color || CAT_COLORS[cat.name] || '#C2C9D0')
+        ctx.fill()
+        // 占比够大的分段才标百分比，太小的会互相叠字
+        if (frac >= 0.05) {
+          const mid = start + angle / 2
+          ctx.setFillStyle('#536171')
+          ctx.setFontSize(11)
+          ctx.setTextAlign('center')
+          ctx.fillText(Math.round(frac * 100) + '%',
+            cx + Math.cos(mid) * (r + 20), cy + Math.sin(mid) * (r + 20) + 4)
+        }
+      }
       start += angle
     })
     // 中心挖空成环形，并写上总额
     ctx.beginPath()
-    ctx.arc(cx, cy, r * 0.6, 0, Math.PI * 2)
+    ctx.arc(cx, cy, r * 0.62, 0, Math.PI * 2)
     ctx.setFillStyle('#FFFFFF')
     ctx.fill()
     ctx.setFillStyle('#7A8593')
-    ctx.setFontSize(20)
+    ctx.setFontSize(19)
     ctx.setTextAlign('center')
     ctx.fillText('本月支出', cx, cy - 12)
     ctx.setFillStyle('#1C2735')
-    ctx.setFontSize(30)
-    ctx.fillText(formatMoney(total) + ' 元', cx, cy + 26)
+    ctx.setFontSize(28)
+    ctx.fillText(formatMoney(total) + ' 元', cx, cy + 24)
+    ctx.draw()
+  },
+
+  // 近 6 个月支出柱状图：绿色圆角柱 + 月均虚线，当月加深
+  drawTrend() {
+    const t = this.data.trend
+    if (!t || !t.values || !t.values.length) return
+    const ctx = wx.createCanvasContext('trendBars', this)
+    const info = wx.getSystemInfoSync()
+    // 画布 CSS 宽是撑满卡片的，这里算出同样的像素宽：页边距 24rpx×2 + 卡片内边距 32rpx×2 = 56px
+    const W = Math.max(240, info.windowWidth - 56)
+    const H = 150
+    const padL = 36, padR = 6, padT = 12, padB = 20
+    const plotW = W - padL - padR, plotH = H - padT - padB
+    const vals = t.values
+
+    // 纵轴取「好看的」4 段刻度，不硬凑 max
+    let step = 1
+    const maxV = Math.max.apply(null, vals.concat([0]))
+    if (maxV > 0) {
+      const raw = maxV / 4
+      const mag = Math.pow(10, Math.floor(Math.log(raw) / Math.LN10))
+      const n = raw / mag
+      step = (n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10) * mag
+    }
+    const top = step * 4
+
+    ctx.clearRect(0, 0, W, H)
+    // 网格线 + 刻度
+    for (let k = 0; k <= 4; k++) {
+      const y = padT + plotH - plotH * k * step / (top || 1)
+      ctx.setStrokeStyle('#EEF1F5')
+      ctx.setLineWidth(1)
+      ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W - padR, y); ctx.stroke()
+      ctx.setFillStyle('#A6ACBE')
+      ctx.setFontSize(10)
+      ctx.setTextAlign('right')
+      const v = k * step
+      ctx.fillText(v >= 1000 ? (v / 1000) + 'k' : '' + Math.round(v), padL - 6, y + 3)
+    }
+
+    // 柱子：最后一根（正在看的月份）加深
+    const slot = plotW / 6
+    const bw = Math.min(26, slot * 0.44)
+    vals.forEach((v, i) => {
+      const h = top > 0 ? plotH * v / top : 0
+      const x = padL + slot * i + (slot - bw) / 2
+      const y = padT + plotH - h
+      ctx.setFillStyle(i === vals.length - 1 ? '#0E7A55' : '#18A775')
+      const rAdj = Math.min(5, h / 2)
+      ctx.beginPath()
+      ctx.moveTo(x, padT + plotH)
+      ctx.lineTo(x, y + rAdj)
+      ctx.quadraticCurveTo(x, y, x + rAdj, y)
+      ctx.lineTo(x + bw - rAdj, y)
+      ctx.quadraticCurveTo(x + bw, y, x + bw, y + rAdj)
+      ctx.lineTo(x + bw, padT + plotH)
+      ctx.closePath()
+      ctx.fill()
+      ctx.setFillStyle(i === vals.length - 1 ? '#1C2735' : '#7A8593')
+      ctx.setFontSize(10)
+      ctx.setTextAlign('center')
+      ctx.fillText(t.labels[i], x + bw / 2, H - 6)
+    })
+
+    // 月均线：只对有数据的月份求平均，全是 0 就不画
+    const nz = vals.filter(v => v > 0)
+    if (nz.length > 1) {
+      const avg = nz.reduce((s, v) => s + v, 0) / nz.length
+      if (avg <= top) {
+        const y = padT + plotH - plotH * avg / top
+        ctx.setStrokeStyle('#F5A623')
+        ctx.setLineWidth(1)
+        ctx.setLineDash([4, 4])
+        ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W - padR, y); ctx.stroke()
+        ctx.setLineDash([])
+        ctx.setFillStyle('#F5A623')
+        ctx.setTextAlign('left')
+        ctx.setFontSize(9)
+        ctx.fillText('月均 ¥' + (avg >= 1000 ? (avg / 1000).toFixed(1) + 'k' : Math.round(avg)), padL + 2, y - 4)
+      }
+    }
     ctx.draw()
   },
 

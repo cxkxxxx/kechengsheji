@@ -11,6 +11,14 @@
 .user-text { margin-left: var(--s-3); min-width: 0; }
 .hero-sub { color: rgba(255, 255, 255, .8); opacity: 1; }
 
+/* 累计节省：主数字 + 三个内容统计，全部压进头区 */
+.hero-save { margin-top: var(--s-4); }
+.hs-label { display: block; font-size: 22rpx; color: rgba(255, 255, 255, .72); }
+.hs-line { display: flex; align-items: baseline; gap: 8rpx; margin-top: 4rpx; }
+.hs-num { font-size: 64rpx; font-weight: 800; color: #4ade9e; line-height: 1.1; }
+.hs-unit { font-size: 24rpx; color: rgba(255, 255, 255, .8); }
+.hero-save .stat-row { margin-top: var(--s-4); }
+
 /* —— 概览三格 —— */
 .stat-row { display: flex; gap: var(--s-2); margin-top: var(--s-5); }
 .stat {
@@ -57,18 +65,21 @@
 }
 .logout:active { background: var(--fill); }
 
-/* 个人页：账目信息卡片与清楚的分区 */
-page { background: #f7f8fa; }
+/* 个人页：只调尺寸节奏，颜色一律用全局 token */
+page { background: var(--bg); }
 .container { padding-bottom: 150rpx; }
-.hero { padding: 30rpx 32rpx 28rpx; border-radius: 0 0 20rpx 20rpx; }
-.avatar { width: 96rpx; height: 96rpx; border-radius: 16rpx; border: 2rpx solid rgba(255,255,255,.25); box-shadow: none; }
+.hero { padding: 30rpx 32rpx 28rpx; border-radius: 0 0 var(--r-lg) var(--r-lg); }
+.avatar { width: 96rpx; height: 96rpx; border-radius: var(--r-md); border: 2rpx solid rgba(255,255,255,.25); box-shadow: none; }
 .user-text { margin-left: 22rpx; }
 .stat-row { margin-top: 28rpx; gap: 12rpx; }
-.stat { min-height: 116rpx; border-radius: 10rpx; background: rgba(255,255,255,.08); }
+.stat { min-height: 116rpx; border-radius: var(--r-sm); background: rgba(255,255,255,.08); }
 .stat-num { font-size: 36rpx; }
 .stat-label { font-size: 21rpx; }
 .section { margin: 28rpx 28rpx 12rpx; }
-.card { border-radius: 12rpx; }
+/* 宫格和卡片区左右对齐（.card 自带 margin，qe-grid 没有） */
+.qe-grid { margin: 12rpx 28rpx 0; }
+.qe-ic .ic { opacity: .8; }
+.card { border-radius: var(--r-md); }
 .list-row { padding: 22rpx 24rpx; }
-.list-icon { width: 58rpx; height: 58rpx; border-radius: 12rpx; background: #edf2f6; }
-.logout { border-radius: 12rpx; box-shadow: none; }
+.list-icon { width: 58rpx; height: 58rpx; border-radius: var(--r-sm); background: var(--brand-soft); }
+.logout { border-radius: var(--r-md); box-shadow: none; }

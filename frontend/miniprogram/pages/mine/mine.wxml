@@ -6,48 +6,55 @@
       <image class="avatar" src="{{user.avatar || '/images/logo.jpg'}}" mode="aspectFill" />
       <view class="flex-1 user-text">
         <text class="hero-title">{{user.nickname || '未登录'}}</text>
-        <text class="hero-sub">累计省下 {{savedText}} 元 · 月度目标 {{goalText}}</text>
+        <text class="hero-sub">{{goalText === '未设置' ? '还没设月度目标' : '月度目标 ' + goalText}}</text>
       </view>
     </view>
 
-    <view class="stat-row">
-      <view class="stat" bindtap="toggleFavorites">
-        <text class="stat-num num">{{favTotal}}</text>
-        <text class="stat-label">我的收藏</text>
+    <!-- 累计节省：个人页的主数字，绿色=正向 -->
+    <view class="hero-save">
+      <view class="hs-main">
+        <text class="hs-label">累计省下</text>
+        <view class="hs-line"><text class="hs-num num">{{savedText}}</text><text class="hs-unit">元</text></view>
       </view>
-      <view class="stat" bindtap="toggleMyPosts">
-        <text class="stat-num num">{{postTotal}}</text>
-        <text class="stat-label">社区发帖</text>
-      </view>
-      <view class="stat" bindtap="toggleSubs">
-        <text class="stat-num num">{{subTotal}}</text>
-        <text class="stat-label">攻略投稿</text>
+      <view class="stat-row">
+        <view class="stat" bindtap="toggleFavorites">
+          <text class="stat-num num">{{favTotal}}</text>
+          <text class="stat-label">我的收藏</text>
+        </view>
+        <view class="stat" bindtap="toggleMyPosts">
+          <text class="stat-num num">{{postTotal}}</text>
+          <text class="stat-label">社区发帖</text>
+        </view>
+        <view class="stat" bindtap="toggleSubs">
+          <text class="stat-num num">{{subTotal}}</text>
+          <text class="stat-label">攻略投稿</text>
+        </view>
       </view>
     </view>
   </view>
 
-  <!-- 常用入口 -->
+  <!-- 常用入口：宫格四格，一格一个动作，比堆列表行更像功能面板 -->
   <view class="section"><text class="section-title">常用功能</text></view>
-  <view class="card card-flat pad-0">
-    <view class="list-row" bindtap="goBill">
-      <view class="list-icon"><view class="ic ic-target"></view></view>
-      <text class="flex-1 row-name">省钱目标与账单分析</text>
-      <view class="ic ic-sm ic-arrow"></view>
+  <view class="qe-grid">
+    <view class="qe-item" bindtap="goBill">
+      <view class="qe-ic"><view class="ic ic-target"></view></view>
+      <text class="qe-name">省钱目标</text>
     </view>
-    <view class="list-row" bindtap="goPrice">
-      <view class="list-icon"><view class="ic ic-search"></view></view>
-      <text class="flex-1 row-name">商品比价</text>
-      <view class="ic ic-sm ic-arrow"></view>
+    <view class="qe-item" bindtap="goPrice">
+      <view class="qe-ic"><view class="ic ic-search"></view></view>
+      <text class="qe-name">商品比价</text>
     </view>
-    <view class="list-row" bindtap="goAssistant">
-      <view class="list-icon"><view class="ic ic-spark"></view></view>
-      <text class="flex-1 row-name">问问 AI 助手</text>
-      <view class="ic ic-sm ic-arrow"></view>
+    <view class="qe-item" bindtap="goAssistant">
+      <view class="qe-ic"><view class="ic ic-spark"></view></view>
+      <text class="qe-name">AI 助手</text>
     </view>
-    <view class="list-row" bindtap="goSettings">
-      <view class="list-icon"><view class="ic ic-user"></view></view>
-      <text class="flex-1 row-name">设置</text>
-      <view class="ic ic-sm ic-arrow"></view>
+    <view class="qe-item" bindtap="goCommunity">
+      <view class="qe-ic"><view class="ic ic-comment"></view></view>
+      <text class="qe-name">去发帖</text>
+    </view>
+    <view class="qe-item" bindtap="goPlans">
+      <view class="qe-ic"><view class="ic ic-doc"></view></view>
+      <text class="qe-name">执行计划</text>
     </view>
   </view>
 

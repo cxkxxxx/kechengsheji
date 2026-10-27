@@ -147,5 +147,14 @@ Page({
       question: (cat ? cat + '方面' : '') + '最近有什么值得薅的羊毛和省钱攻略？',
     }
     wx.switchTab({ url: '/pages/assistant/assistant' })
+  },
+
+  // 快捷入口：比价和账单都是独立页面/标签页
+  goPrice() {
+    wx.navigateTo({ url: '/pages/price/price' })
+  },
+
+  goBill() {
+    wx.switchTab({ url: '/pages/bill/bill' })
   }
 })

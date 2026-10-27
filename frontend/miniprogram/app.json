@@ -10,17 +10,18 @@
     "pages/articleCreate/articleCreate",
     "pages/postDetail/postDetail",
     "pages/postCreate/postCreate",
-    "pages/price/price"
+    "pages/price/price",
+    "pages/plan/plan"
   ],
   "window": {
     "navigationBarBackgroundColor": "#FFFFFF",
     "navigationBarTextStyle": "black",
     "navigationBarTitleText": "省钱攻略",
-    "backgroundColor": "#F6F7FB"
+    "backgroundColor": "#F4F6F9"
   },
   "tabBar": {
     "color": "#8A94A3",
-    "selectedColor": "#263B55",
+    "selectedColor": "#20344D",
     "list": [
       { "pagePath": "pages/index/index", "text": "攻略", "iconPath": "images/tabbar/index.png", "selectedIconPath": "images/tabbar/index_active_navy.png" },
       { "pagePath": "pages/community/community", "text": "社区", "iconPath": "images/tabbar/community.png", "selectedIconPath": "images/tabbar/community_active_navy.png" },

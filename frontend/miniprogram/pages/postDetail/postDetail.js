@@ -11,7 +11,9 @@ Page({
     comments: [],
     commentText: '',
     favorited: false,
-    liked: false
+    liked: false,
+    showSaveDialog: false,
+    saveForm: { amount: '', note: '' }
   },
 
   onLoad(options) {
@@ -44,6 +46,51 @@ Page({
   previewImage(e) {
     const i = e.currentTarget.dataset.i
     wx.previewImage({ current: this.data.gridList[i], urls: this.data.gridList })
+  },
+
+  // 问AI：把帖子内容带过去，让「优惠情报员」把它变成可执行步骤
+  askAI() {
+    const content = String(this.data.post.content || '')
+    app.globalData.pendingAsk = {
+      agent: 'coupon',
+      question: '我在看社区帖子《' + this.data.post.title + '》，内容大意：'
+        + content.slice(0, 120)
+        + '。帮我把它变成可执行的步骤和购物清单，按我的情况调整方案。'
+    }
+    wx.switchTab({ url: '/pages/assistant/assistant' })
+  },
+
+  openSaveDialog() {
+    this.setData({ showSaveDialog: true, saveForm: { amount: '', note: '' } })
+  },
+
+  closeSaveDialog() {
+    this.setData({ showSaveDialog: false })
+  },
+
+  onSaveInput(e) {
+    const field = e.currentTarget.dataset.field
+    this.setData({ ['saveForm.' + field]: e.detail.value })
+  },
+
+  // 记省钱：来源是这条帖子，走后端 /checkin/do，source=社区经验 用来追溯
+  async submitSave() {
+    const amount = parseFloat(this.data.saveForm.amount)
+    if (!amount || amount <= 0) {
+      wx.showToast({ title: '请填写实际省下的金额', icon: 'none' })
+      return
+    }
+    try {
+      await request('/checkin/do', 'POST', {
+        saved_amount: Math.round(amount * 100) / 100,
+        note: this.data.saveForm.note || '',
+        source: '社区经验',
+        ref_type: 'post',
+        ref_id: parseInt(this.postId)
+      })
+      this.setData({ showSaveDialog: false })
+      wx.showToast({ title: '已记入省钱成果', icon: 'none' })
+    } catch (e) { console.error(e) }
   },
 
   async likePost() {
