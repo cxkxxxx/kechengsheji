@@ -1,4 +1,5 @@
 <view class="container">
+  <!-- 模块一：页面标题 -->
   <view class="page-head">
     <view class="head-copy">
       <text class="page-title">省钱攻略</text>
@@ -9,93 +10,259 @@
     </view>
   </view>
 
-  <view class="search-bar">
-    <text class="ic ic-search ic-sm"></text>
-    <input class="search-input" placeholder-class="search-ph" placeholder="搜索攻略标题或关键词"
-           value="{{keyword}}" bindinput="onSearch" confirm-type="search" />
-    <view class="search-clear" wx:if="{{keyword}}" catchtap="clearSearch">
-      <text class="ic ic-close ic-sm"></text>
+  <!-- 未登录：先引导登录，不伪造任何数据 -->
+  <view class="card login-card" wx:if="{{!loggedIn}}">
+    <view class="ic ic-user"></view>
+    <view class="flex-1">
+      <text class="login-title">登录后查看你的省钱数据</text>
+      <text class="login-sub">账单概览、省钱目标和消费记录都在这里</text>
     </view>
+    <view class="btn-primary login-btn" bindtap="goLogin">去登录</view>
   </view>
 
-  <!-- 快捷入口：省钱工具的高频三件事，点一下就到，不用去「我的」里翻 -->
-  <view class="quick-entries">
-    <view class="qe-grid">
-      <view class="qe-item" bindtap="goPrice">
-        <view class="qe-ic"><view class="ic ic-link"></view></view>
-        <text class="qe-name">商品比价</text>
-      </view>
-      <view class="qe-item" bindtap="goAsk">
-        <view class="qe-ic"><view class="ic ic-spark"></view></view>
-        <text class="qe-name">问 AI 优惠</text>
-      </view>
-      <view class="qe-item" bindtap="goBill">
-        <view class="qe-ic"><view class="ic ic-wallet"></view></view>
-        <text class="qe-name">账单分析</text>
-      </view>
-    </view>
-  </view>
-
-  <scroll-view scroll-x class="tabs" enhanced show-scrollbar="{{false}}">
-    <view wx:for="{{categories}}" wx:key="*this"
-          class="tab {{currentCategory === item ? 'active' : ''}}"
-          bindtap="switchCategory" data-cat="{{item}}">{{item}}</view>
-  </scroll-view>
-
-  <scroll-view scroll-y class="refresh-list" refresher-enabled
-               refresher-triggered="{{refreshing}}"
-               bindrefresherrefresh="onRefresherRefresh">
-    <view class="section-bar">
-      <text class="section-title">精选攻略</text>
-      <text class="section-count" wx:if="{{!loading}}">{{filtered.length}} 条内容</text>
-    </view>
-
-    <block wx:if="{{loading}}">
-      <view class="article-card skeleton-card" wx:for="{{[1,2,3]}}" wx:key="*this">
-        <view class="skeleton skeleton-thumb"></view>
-        <view class="skeleton-copy">
-          <view class="skeleton skeleton-title"></view>
-          <view class="skeleton skeleton-line"></view>
-          <view class="skeleton skeleton-line short"></view>
+  <block wx:else>
+    <!-- 模块二：快捷功能（四列紧凑入口） -->
+    <view class="quick-entries">
+      <view class="qe-grid">
+        <view class="qe-item" bindtap="openQuick">
+          <view class="qe-ic"><view class="ic ic-plus"></view></view>
+          <text class="qe-name">记一笔</text>
+        </view>
+        <view class="qe-item" bindtap="openGoal">
+          <view class="qe-ic"><view class="ic ic-target"></view></view>
+          <text class="qe-name">省钱目标</text>
+        </view>
+        <view class="qe-item" bindtap="goBillFocus">
+          <view class="qe-ic"><view class="ic ic-spark"></view></view>
+          <text class="qe-name">AI 账单分析</text>
+        </view>
+        <view class="qe-item" bindtap="goPrice">
+          <view class="qe-ic"><view class="ic ic-search"></view></view>
+          <text class="qe-name">商品比价</text>
         </view>
       </view>
-    </block>
+    </view>
 
-    <block wx:elif="{{filtered.length}}">
-      <view class="article-card card-tap" wx:for="{{filtered}}" wx:key="id"
-            bindtap="goDetail" data-id="{{item.id}}">
-        <view class="thumb-wrap">
-          <image wx:if="{{item.coverUrl}}" class="article-thumb" src="{{item.coverUrl}}" mode="aspectFill" />
-          <view wx:else class="article-thumb thumb-fallback thumb-{{index % 4}}">
-            <text class="thumb-mark">省</text>
-            <text class="thumb-caption">{{item.category}}</text>
-          </view>
+    <!-- 模块三：本月省钱概览 + 省钱目标（合并一张卡） -->
+    <view class="ov-card">
+      <view class="ov-head">
+        <text class="ov-title">本月省钱概览</text>
+        <text class="ov-month">{{monthText}}</text>
+      </view>
+      <view class="ov-nums">
+        <view class="ov-num" bindtap="goBill">
+          <text class="ov-label">本月支出</text>
+          <view class="ov-line"><text class="ov-val num">{{overview.spendText}}</text><text class="ov-unit">元</text></view>
         </view>
-        <view class="article-info">
-          <text class="article-title ellipsis-2">{{item.title}}</text>
-          <text class="article-summary ellipsis">{{item.content}}</text>
-          <view class="article-bottom">
-            <view class="article-author">
-              <text class="ic ic-user ic-xs"></text>
-              <text class="author-name ellipsis">{{item.author || '省钱达人'}}</text>
-              <text class="chip chip-sm">{{item.category}}</text>
-            </view>
-            <view class="article-stats">
-              <view class="stat"><text class="ic {{item.liked ? 'ic-heart-on' : 'ic-heart'}} ic-xs"></text><text>{{item.likes || 0}}</text></view>
-              <view class="stat"><text class="ic ic-eye ic-xs"></text><text>{{item.views || 0}}</text></view>
-            </view>
+        <view class="ov-num">
+          <text class="ov-label">实际节省</text>
+          <view class="ov-line"><text class="ov-val num pos">{{overview.savedText}}</text><text class="ov-unit">元</text></view>
+        </view>
+        <view class="ov-num" bindtap="onBudgetTap">
+          <text class="ov-label">{{overview.budgetLabel}}</text>
+          <view class="ov-line">
+            <text class="ov-val num {{overview.budgetCls}}">{{overview.budgetText}}</text>
+            <text class="ov-unit" wx:if="{{overview.budgetCls !== 'set'}}">元</text>
           </view>
         </view>
       </view>
-      <view class="list-tip">下拉刷新，查看更多攻略</view>
-    </block>
 
-    <view wx:else class="empty">
-      <view class="empty-symbol"><text class="ic ic-search"></text></view>
-      <text class="empty-text">暂时没有匹配的攻略</text>
-      <text class="empty-tip">换个分类或关键词试试看</text>
-      <view class="empty-btn" bindtap="clearSearch">清除筛选</view>
+      <!-- 目标区：只显示目标金额、还差和进度；「已省」不在这里重复出现 -->
+      <view class="goal-sec" wx:if="{{goal.hasTarget}}">
+        <view class="goal-nums">
+          <view class="goal-num"><text class="goal-label">省钱目标</text><text class="goal-val num">¥{{goal.targetText}}</text></view>
+          <view class="goal-num"><text class="goal-label">距离目标还差</text><text class="goal-val num">¥{{goal.remainText}}</text></view>
+          <view class="goal-edit" bindtap="openGoal"><text>修改</text></view>
+        </view>
+        <view class="goal-bar-wrap">
+          <view class="goal-bar"><view class="goal-bar-fill" style="width: {{goal.progress}}%;"></view></view>
+          <text class="goal-progress num">{{goal.progress}}%</text>
+        </view>
+      </view>
+      <view class="goal-sec goal-unset" wx:else bindtap="openGoal">
+        <text class="goal-unset-txt">还没设置本月省钱目标</text>
+        <view class="goal-unset-btn"><text>设置目标</text><view class="ic ic-sm ic-arrow"></view></view>
+      </view>
+
+      <view class="ov-foot" bindtap="goBill">
+        <text>查看消费明细</text><view class="ic ic-sm ic-arrow"></view>
+      </view>
     </view>
-    <view class="list-padding"></view>
-  </scroll-view>
+
+    <!-- 模块四：月度消费日历（与账单页共用组件） -->
+    <heat-calendar wx:if="{{calBills.length}}" month="{{month}}" bills="{{calBills}}" title="消费日历"
+                   bind:daypick="onDayPick" />
+
+    <!-- 模块五：最近消费 -->
+    <view class="sec-row">
+      <text class="sec-title">最近消费</text>
+      <view class="sec-act" bindtap="goBill"><text class="sec-act-txt">查看全部</text><view class="ic ic-sm ic-arrow"></view></view>
+    </view>
+    <view class="card card-flat recent-card pad-0" wx:if="{{recent.length}}">
+      <view class="rec-row" wx:for="{{recent}}" wx:key="id" bindtap="goBill">
+        <view class="rec-dot" style="background: {{item.color}};"></view>
+        <view class="flex-1 rec-main">
+          <text class="rec-note ellipsis">{{item.note}}</text>
+          <view class="rec-meta"><text class="rec-chip">{{item.category}}</text><text class="rec-day num">{{item.day}}</text></view>
+        </view>
+        <text class="rec-amount num">¥{{item.amountText}}</text>
+      </view>
+    </view>
+    <view class="card card-flat recent-empty" wx:else>
+      <text class="empty-text">本月还没有消费记录</text>
+      <view class="btn-primary goal-btn" bindtap="openQuick">记一笔</view>
+    </view>
+  </block>
+
+  <!-- 模块六：精选省钱攻略（完整搜索/筛选在攻略页） -->
+  <view class="section-bar">
+    <text class="section-title">精选攻略</text>
+    <text class="section-count" wx:if="{{!loading}}">{{articles.length}} 条</text>
+  </view>
+
+  <block wx:if="{{loading}}">
+    <view class="article-card skeleton-card" wx:for="{{[1,2,3]}}" wx:key="*this">
+      <view class="skeleton skeleton-thumb"></view>
+      <view class="skeleton-copy">
+        <view class="skeleton skeleton-title"></view>
+        <view class="skeleton skeleton-line"></view>
+        <view class="skeleton skeleton-line short"></view>
+      </view>
+    </view>
+  </block>
+
+  <block wx:elif="{{articles.length}}">
+    <view class="article-card card-tap" wx:for="{{articles}}" wx:key="id"
+          bindtap="goDetail" data-id="{{item.id}}">
+      <view class="thumb-wrap">
+        <image wx:if="{{item.coverUrl}}" class="article-thumb" src="{{item.coverUrl}}" mode="aspectFill" />
+        <view wx:else class="article-thumb thumb-fallback thumb-{{index % 4}}">
+          <text class="thumb-mark">省</text>
+          <text class="thumb-caption">{{item.category}}</text>
+        </view>
+      </view>
+      <view class="article-info">
+        <text class="article-title ellipsis-2">{{item.title}}</text>
+        <text class="article-summary ellipsis">{{item.content}}</text>
+        <view class="article-bottom">
+          <view class="article-author">
+            <text class="ic ic-user ic-xs"></text>
+            <text class="author-name ellipsis">{{item.author || '省钱达人'}}</text>
+            <text class="chip chip-sm">{{item.category}}</text>
+          </view>
+          <view class="article-stats">
+            <view class="stat"><text class="ic {{item.liked ? 'ic-heart-on' : 'ic-heart'}} ic-xs"></text><text>{{item.likes || 0}}</text></view>
+            <view class="stat"><text class="ic ic-eye ic-xs"></text><text>{{item.views || 0}}</text></view>
+          </view>
+        </view>
+      </view>
+    </view>
+    <view class="list-tip">下拉刷新，轮换看更多</view>
+  </block>
+
+  <view wx:else class="empty">
+    <view class="empty-symbol"><text class="ic ic-search"></text></view>
+    <text class="empty-text">还没有攻略内容</text>
+    <view class="empty-btn" bindtap="goCreate">写一篇</view>
+  </view>
+
+  <view class="all-articles" bindtap="goArticles">
+    <text>查看全部攻略</text><view class="ic ic-sm ic-arrow"></view>
+  </view>
+
+  <view class="list-padding"></view>
+
+  <!-- 点日历某天：当天消费明细 -->
+  <view class="mask" wx:if="{{showDay}}" bindtap="closeDay"></view>
+  <view class="dialog" wx:if="{{showDay}}">
+    <view class="dialog-head">
+      <text class="dialog-title">{{dayLabel}}的消费</text>
+      <view class="dialog-x" bindtap="closeDay"><view class="ic ic-sm ic-close"></view></view>
+    </view>
+    <view class="day-list" wx:if="{{dayList.length}}">
+      <view class="rec-row" wx:for="{{dayList}}" wx:key="id" bindtap="goBill">
+        <view class="rec-dot" style="background: {{item.color}};"></view>
+        <view class="flex-1 rec-main">
+          <text class="rec-note ellipsis">{{item.note}}</text>
+          <text class="rec-chip">{{item.category}}</text>
+        </view>
+        <text class="rec-amount num">¥{{item.amountText}}</text>
+      </view>
+    </view>
+    <view class="empty empty-sm" wx:else>
+      <text class="empty-text">这天没有消费记录</text>
+    </view>
+    <view class="dialog-btns">
+      <view class="btn-cancel" bindtap="closeDay">关闭</view>
+      <view class="btn-confirm" bindtap="goBill">去账单页</view>
+    </view>
+  </view>
+
+  <!-- 快捷记一笔：金额/分类/日期/备注，保存成功即刷新首页数据 -->
+  <view class="mask" wx:if="{{showQuick}}" bindtap="closeQuick"></view>
+  <view class="dialog" wx:if="{{showQuick}}">
+    <view class="dialog-head">
+      <text class="dialog-title">记一笔消费</text>
+      <view class="dialog-x" bindtap="closeQuick"><view class="ic ic-sm ic-close"></view></view>
+    </view>
+    <view class="form-item">
+      <text class="label">金额（元）</text>
+      <input class="input num" type="digit" placeholder="0.00" placeholder-class="ph"
+             value="{{quick.amount}}" data-field="amount" bindinput="onQuickInput" />
+    </view>
+    <view class="form-item">
+      <text class="label">分类</text>
+      <view class="tags">
+        <view class="tag {{quick.category === item ? 'active' : ''}}" wx:for="{{quickCats}}" wx:key="*this"
+              bindtap="pickQuickCat" data-cat="{{item}}">{{item}}</view>
+      </view>
+    </view>
+    <view class="form-item">
+      <text class="label">日期</text>
+      <picker mode="date" value="{{quick.bill_date}}" bindchange="onQuickDate">
+        <view class="picker flex-between">
+          <text class="num">{{quick.bill_date || '今天'}}</text>
+          <view class="ic ic-sm ic-clock"></view>
+        </view>
+      </picker>
+    </view>
+    <view class="form-item">
+      <text class="label">备注</text>
+      <input class="input" placeholder="买了什么，一句话（选填）" placeholder-class="ph"
+             value="{{quick.note}}" data-field="note" bindinput="onQuickInput" />
+    </view>
+    <view class="dialog-btns">
+      <view class="btn-cancel" bindtap="closeQuick">取消</view>
+      <view class="btn-confirm {{quick.submitting ? 'disabled' : ''}}" bindtap="submitQuick">
+        {{quick.submitting ? '保存中…' : '保存'}}
+      </view>
+    </view>
+  </view>
+
+  <!-- 目标设置：省钱目标（想省多少）和支出上限（最多花多少）分开填 -->
+  <view class="mask" wx:if="{{showGoal}}" bindtap="closeGoal"></view>
+  <view class="dialog" wx:if="{{showGoal}}">
+    <view class="dialog-head">
+      <text class="dialog-title">设置本月目标</text>
+      <view class="dialog-x" bindtap="closeGoal"><view class="ic ic-sm ic-close"></view></view>
+    </view>
+    <view class="form-item">
+      <text class="label">省钱目标（元）<text class="goal-label-hint">想实际省下多少</text></text>
+      <input class="input num" type="digit" placeholder="例如 500" placeholder-class="ph"
+             value="{{goalForm.target}}" data-field="target" bindinput="onGoalInput" />
+      <text class="desc goal-tip">只统计你确认过的实际节省，AI 预估和预算剩余不算在内</text>
+    </view>
+    <view class="form-item">
+      <text class="label">支出上限（元）<text class="goal-label-hint">本月最多花多少，选填</text></text>
+      <input class="input num" type="digit" placeholder="例如 3000" placeholder-class="ph"
+             value="{{goalForm.limit}}" data-field="limit" bindinput="onGoalInput" />
+      <text class="desc goal-tip">超了会在首页概览里标红提醒</text>
+    </view>
+    <view class="dialog-btns">
+      <view class="btn-cancel" bindtap="closeGoal">取消</view>
+      <view class="btn-confirm {{goalForm.submitting ? 'disabled' : ''}}" bindtap="submitGoal">
+        {{goalForm.submitting ? '保存中…' : '保存目标'}}
+      </view>
+    </view>
+  </view>
 </view>

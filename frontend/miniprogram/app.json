@@ -6,6 +6,7 @@
     "pages/bill/bill",
     "pages/mine/mine",
     "pages/login/login",
+    "pages/articles/articles",
     "pages/articleDetail/articleDetail",
     "pages/articleCreate/articleCreate",
     "pages/postDetail/postDetail",
@@ -23,7 +24,7 @@
     "color": "#8A94A3",
     "selectedColor": "#20344D",
     "list": [
-      { "pagePath": "pages/index/index", "text": "攻略", "iconPath": "images/tabbar/index.png", "selectedIconPath": "images/tabbar/index_active_navy.png" },
+      { "pagePath": "pages/index/index", "text": "首页", "iconPath": "images/tabbar/index.png", "selectedIconPath": "images/tabbar/index_active_navy.png" },
       { "pagePath": "pages/community/community", "text": "社区", "iconPath": "images/tabbar/community.png", "selectedIconPath": "images/tabbar/community_active_navy.png" },
       { "pagePath": "pages/assistant/assistant", "text": "AI助手", "iconPath": "images/tabbar/assistant.png", "selectedIconPath": "images/tabbar/assistant_active_navy.png" },
       { "pagePath": "pages/bill/bill", "text": "账单", "iconPath": "images/tabbar/bill.png", "selectedIconPath": "images/tabbar/bill_active_navy.png" },

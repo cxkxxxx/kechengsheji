@@ -93,18 +93,16 @@ Page({
     this._applyTag(tag, true)
   },
 
-  // 下拉刷新：轮换下一批未看过的 8 条
-  onRefresherRefresh() {
-    this.setData({ refreshing: true })
+  // 下拉刷新（页面级）：轮换下一批未看过的 8 条
+  onPullDownRefresh() {
     wx.vibrateShort({ type: 'light' })
-    setTimeout(() => {
-      if (this._pool && this._pool.length) {
-        this.setData({ posts: this.pickNext().map(decorate) })
-      } else {
-        this.loadPosts()
-      }
-      this.setData({ refreshing: false })
-    }, 500)
+    const done = () => wx.stopPullDownRefresh()
+    if (this._pool && this._pool.length) {
+      this.setData({ posts: this.pickNext().map(decorate) })
+      setTimeout(done, 400) // 让刷新动画有可见过程
+    } else {
+      this.loadPosts(true).then(done).catch(done)
+    }
   },
 
   pickNext() {

@@ -13,6 +13,8 @@ Page({
     user: {},
     savedText: '0.00',
     goalText: '未设置',
+    // 本月省钱计划（后端 /checkin/plan 一份口径，和首页/账单页一致）
+    planLine: '还没设本月省钱目标',
     favList: [],
     favTotal: 0,
     myPosts: [],
@@ -31,6 +33,7 @@ Page({
   // 否则首屏拿到空 id 直接 return，「我的发帖」就永远是空的
   async onShow() {
     await this.loadUser()
+    this.loadPlan()
     this.loadFavorites()
     this.loadMyPosts()
     this.loadMySubs()
@@ -40,7 +43,7 @@ Page({
   async onPullDownRefresh() {
     try {
       await this.loadUser(true)
-      await Promise.all([this.loadFavorites(true), this.loadMyPosts(true), this.loadMySubs(true)])
+      await Promise.all([this.loadPlan(true), this.loadFavorites(true), this.loadMyPosts(true), this.loadMySubs(true)])
     } finally {
       wx.stopPullDownRefresh()
     }
@@ -52,7 +55,6 @@ Page({
       this.setData({
         user: data || {},
         savedText: formatMoney(data && data.total_saved),
-        goalText: data && data.budget_goal ? formatMoney(data.budget_goal) + ' 元/月' : '未设置',
         loading: false
       })
       return true
@@ -61,6 +63,21 @@ Page({
       wx.redirectTo({ url: '/pages/login/login' })
       return false
     }
+  },
+
+  // 本月目标/已省：和首页同源，避免两个页面各算各的对不上
+  async loadPlan(force = false) {
+    try {
+      const plan = await request('/checkin/plan', 'GET', {}, force)
+      const target = parseFloat(plan && plan.target_amount) || 0
+      const saved = parseFloat(plan && plan.saved_amount) || 0
+      this.setData({
+        goalText: target > 0 ? formatMoney(target) + ' 元/月' : '未设置',
+        planLine: target > 0
+          ? '本月目标 ¥' + formatMoney(target) + ' · 已省 ¥' + formatMoney(saved)
+          : '还没设本月省钱目标'
+      })
+    } catch (e) { /* 未登录等情况由 loadUser 处理 */ }
   },
 
   async toggleFavorites() { this.setData({ showFav: !this.data.showFav }) },
@@ -139,13 +156,20 @@ Page({
     wx.navigateTo({ url: '/pages/postDetail/postDetail?id=' + e.currentTarget.dataset.id })
   },
 
+  // 账单已恢复为 tabBar 页：switchTab；深链定位经 globalData 传给账单页 onShow
   goBill() { wx.switchTab({ url: '/pages/bill/bill' }) },
 
+  goBillRecords() {
+    getApp().globalData.pendingBillFocus = 'records'
+    wx.switchTab({ url: '/pages/bill/bill' })
+  },
+
+  goBillReport() {
+    getApp().globalData.pendingBillFocus = 'report'
+    wx.switchTab({ url: '/pages/bill/bill' })
+  },
+
   goPrice() { wx.navigateTo({ url: '/pages/price/price' }) },
-
-  goAssistant() { wx.switchTab({ url: '/pages/assistant/assistant' }) },
-
-  goCommunity() { wx.switchTab({ url: '/pages/community/community' }) },
 
   // AI 执行计划历史（从攻略页「AI 帮我执行」生成的都在这）
   goPlans() { wx.navigateTo({ url: '/pages/plan/plan' }) },

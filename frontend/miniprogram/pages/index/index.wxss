@@ -8,13 +8,9 @@ page {
 
 .quick-entries { margin: 0 36rpx 22rpx; }
 
+/* 页面级滚动：不设固定高度、不 overflow hidden，整页随内容自然滚动 */
 .container {
-  height: 100vh;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  padding: 0;
+  padding: 0 0 20rpx;
   background: var(--page-bg);
 }
 
@@ -56,68 +52,7 @@ page {
 .head-action:active { background: var(--navy-soft); }
 .head-action .ic { opacity: .85; }
 
-.search-bar {
-  display: flex;
-  align-items: center;
-  gap: 14rpx;
-  margin: 0 36rpx 22rpx;
-  padding: 0 24rpx;
-  height: 78rpx;
-  border: 1rpx solid var(--line);
-  border-radius: var(--r-md);
-  background: var(--fill);
-}
-.search-bar .ic { opacity: .72; }
-.search-input {
-  flex: 1;
-  min-width: 0;
-  height: 78rpx;
-  color: var(--ink);
-  font-size: 27rpx;
-}
-.search-ph { color: #a0a9b4; }
-.search-clear {
-  width: 42rpx;
-  height: 42rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.search-clear .ic { opacity: .5; }
-
-.tabs {
-  flex: none;
-  width: 100%;
-  padding: 0 36rpx 24rpx;
-  white-space: nowrap;
-  background: #fff;
-}
-.tab {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 60rpx;
-  margin-right: 14rpx;
-  padding: 0 24rpx;
-  border: 1rpx solid #e2e7ed;
-  border-radius: 12rpx;
-  color: #647080;
-  background: #fff;
-  font-size: 25rpx;
-  line-height: 1;
-}
-.tab.active {
-  border-color: var(--navy);
-  color: #fff;
-  background: var(--navy);
-  font-weight: 600;
-}
-
-.refresh-list {
-  flex: 1;
-  height: 0;
-  background: var(--page-bg);
-}
+/* 搜索框与分类筛选已迁往独立攻略页 pages/articles */
 .section-bar {
   display: flex;
   align-items: baseline;
@@ -226,7 +161,20 @@ page {
 .skeleton-line { width: 94%; height: 20rpx; margin-bottom: 14rpx; }
 .skeleton-line.short { width: 48%; }
 
-.list-tip { padding: 8rpx 0 26rpx; color: #a0a8b2; text-align: center; font-size: 21rpx; }
+.list-tip { padding: 8rpx 0 10rpx; color: #a0a8b2; text-align: center; font-size: 21rpx; }
+
+/* 查看全部攻略：首页攻略模块只做精选，完整列表进独立攻略页 */
+.all-articles {
+  display: flex; align-items: center; justify-content: center; gap: 6rpx;
+  margin: 6rpx 24rpx 0;
+  padding: 22rpx 0;
+  border: 1rpx solid var(--line);
+  border-radius: var(--r-md);
+  background: #fff;
+  color: var(--brand-2); font-size: 26rpx; font-weight: 500;
+}
+.all-articles .ic { opacity: .6; }
+.all-articles:active { background: #fafbfd; }
 .empty { display: flex; flex-direction: column; align-items: center; padding: 120rpx 40rpx; }
 .empty-symbol {
   width: 92rpx;
@@ -244,3 +192,88 @@ page {
 .empty-btn { margin-top: 28rpx; padding: 14rpx 28rpx; border: 1rpx solid #cdd6df; border-radius: 10rpx; color: var(--navy); font-size: 24rpx; }
 .empty-btn:active { background: var(--navy-soft); }
 .list-padding { height: 44rpx; }
+
+/* ---------- 未登录引导 ---------- */
+.login-card { display: flex; align-items: center; gap: var(--s-3); margin: 0 36rpx var(--s-3); padding: var(--s-3) var(--s-4); }
+.login-card .ic { width: 56rpx; height: 56rpx; background-size: 56rpx 56rpx; opacity: .7; flex: none; }
+.login-title { display: block; color: var(--ink); font-size: 28rpx; font-weight: 600; }
+.login-sub { display: block; margin-top: 6rpx; color: var(--muted); font-size: 22rpx; }
+.login-btn { flex: none; padding: 14rpx 30rpx; font-size: 25rpx; }
+
+/* ---------- 本月省钱概览（含目标，合并一张卡） ---------- */
+.ov-card {
+  margin: 0 36rpx var(--s-3);
+  padding: var(--s-3) var(--s-4) 0;
+  background: var(--card);
+  border-radius: var(--r-md);
+  box-shadow: var(--sh-1);
+}
+.ov-head { display: flex; align-items: center; justify-content: space-between; }
+.ov-title { color: var(--ink); font-size: 28rpx; font-weight: 600; }
+.ov-month { color: var(--muted); font-size: 22rpx; }
+.ov-nums { display: flex; margin-top: var(--s-3); }
+.ov-num { flex: 1; min-width: 0; }
+.ov-num + .ov-num { border-left: 1rpx solid var(--line); padding-left: var(--s-3); }
+.ov-label { display: block; color: var(--muted); font-size: 21rpx; }
+.ov-line { display: flex; align-items: baseline; gap: 4rpx; margin-top: 8rpx; }
+.ov-val { color: var(--ink); font-size: 36rpx; font-weight: 700; }
+.ov-val.pos { color: var(--ok); }
+.ov-val.neg { color: var(--danger); }
+.ov-val.set { color: var(--brand-2); font-size: 26rpx; font-weight: 500; }
+.ov-unit { color: var(--muted); font-size: 20rpx; }
+.ov-foot {
+  display: flex; align-items: center; justify-content: center; gap: 6rpx;
+  margin: var(--s-3) calc(-1 * var(--s-4)) 0;
+  padding: 18rpx 0;
+  border-top: 1rpx solid var(--line);
+  color: var(--brand-2); font-size: 24rpx;
+}
+.ov-foot .ic { opacity: .6; }
+.ov-foot:active { background: #fafbfd; border-radius: 0 0 var(--r-md) var(--r-md); }
+
+/* 目标区：轻分隔线之后，只显示目标金额、还差和进度，不重复展示「已省」 */
+.goal-sec { margin-top: var(--s-3); padding-top: var(--s-3); border-top: 1rpx solid var(--line); }
+.goal-nums { display: flex; align-items: center; gap: var(--s-3); }
+.goal-num { flex: 1; min-width: 0; }
+.goal-num + .goal-num { border-left: 1rpx solid var(--line); padding-left: var(--s-3); }
+.goal-label { display: block; color: var(--muted); font-size: 21rpx; }
+.goal-val { display: block; margin-top: 8rpx; color: var(--ink); font-size: 32rpx; font-weight: 700; }
+.goal-val.pos { color: var(--ok); }
+.goal-edit { flex: none; color: var(--brand-2); font-size: 23rpx; }
+.goal-edit:active { opacity: .7; }
+.goal-bar-wrap { display: flex; align-items: center; gap: var(--s-2); margin-top: var(--s-3); }
+.goal-bar { flex: 1; height: 12rpx; border-radius: var(--r-full); background: var(--fill); overflow: hidden; }
+.goal-bar-fill { height: 100%; border-radius: var(--r-full); background: var(--ok); transition: width .3s ease; }
+.goal-progress { flex: none; color: var(--ink-2); font-size: 22rpx; }
+.goal-unset { display: flex; align-items: center; justify-content: space-between; }
+.goal-unset-txt { color: var(--muted); font-size: 24rpx; }
+.goal-unset-btn { display: flex; align-items: center; gap: 4rpx; color: var(--brand-2); font-size: 24rpx; font-weight: 500; }
+.goal-unset-btn:active { opacity: .7; }
+.goal-btn { margin-top: var(--s-3); padding: 16rpx 44rpx; font-size: 26rpx; }
+
+/* 日历弹窗里的当天明细列表可滚动（弹窗内，不影响页面级滚动） */
+.day-list { max-height: 480rpx; overflow-y: auto; margin: 0 calc(-1 * var(--s-3)); padding: 0 var(--s-3); }
+
+/* ---------- 最近消费 ---------- */
+.sec-row { display: flex; align-items: center; justify-content: space-between; margin: 0 36rpx var(--s-2); }
+.sec-title { color: var(--ink); font-size: 30rpx; font-weight: 600; }
+.sec-act { display: flex; align-items: center; gap: 4rpx; }
+.sec-act-txt { color: var(--brand-2); font-size: 23rpx; }
+.sec-act .ic { opacity: .55; }
+.recent-card { margin: 0 36rpx var(--s-3); }
+.rec-row { display: flex; align-items: center; gap: var(--s-2); padding: 22rpx var(--s-3); }
+.rec-row + .rec-row { border-top: 1rpx solid var(--line); }
+.rec-row:active { background: #FAFAFD; }
+.rec-dot { width: 14rpx; height: 14rpx; border-radius: 50%; flex: none; }
+.rec-main { min-width: 0; }
+.rec-note { display: block; color: var(--ink); font-size: 26rpx; }
+.rec-meta { display: flex; align-items: center; gap: 12rpx; margin-top: 6rpx; }
+.rec-chip { padding: 2rpx 12rpx; border-radius: var(--r-full); background: var(--fill); color: var(--ink-2); font-size: 20rpx; }
+.rec-day { color: var(--muted); font-size: 21rpx; }
+.rec-amount { flex: none; color: var(--ink); font-size: 30rpx; font-weight: 700; }
+.recent-empty { margin: 0 36rpx var(--s-3); display: flex; flex-direction: column; align-items: center; padding: var(--s-4); }
+
+/* ---------- 弹窗补充 ---------- */
+.goal-label-hint { margin-left: 10rpx; font-size: 21rpx; color: var(--muted); font-weight: 400; }
+.goal-tip { display: block; margin-top: 8rpx; }
+.btn-confirm.disabled, .btn-primary.disabled { opacity: .6; }

@@ -197,28 +197,7 @@
 .quick-amt { font-size: 21rpx; color: var(--muted); }
 .quick-hint { display: block; margin-top: 18rpx; font-size: 21rpx; }
 
-/* ===== 消费日历热力图 ===== */
-.cal-card { margin-top: 20rpx; }
-.cal-head { margin-bottom: 18rpx; }
-.cal-week { display: flex; margin-bottom: 8rpx; }
-.cal-wd {
-  flex: 1; text-align: center; font-size: 20rpx; color: var(--muted);
-}
-.cal-grid { display: flex; flex-wrap: wrap; }
-.cal-cell {
-  width: calc(100% / 7); height: 76rpx; box-sizing: border-box;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-}
-.cal-n { font-size: 20rpx; color: var(--muted); line-height: 1.1; }
-.cal-v { font-size: 18rpx; line-height: 1.2; color: var(--ink-2); }
-.cal-empty .cal-n, .cal-empty .cal-v { visibility: hidden; }
-.cal-l0 { background: transparent; }
-.cal-l1 { background: rgba(58, 80, 107, .10); border-radius: 8rpx; }
-.cal-l2 { background: rgba(58, 80, 107, .26); border-radius: 8rpx; }
-.cal-l3 { background: rgba(58, 80, 107, .48); border-radius: 8rpx; }
-.cal-l4 { background: rgba(58, 80, 107, .74); border-radius: 8rpx; }
-.cal-l4 .cal-n, .cal-l4 .cal-v { color: #fff; }
-.cal-foot { margin-top: 14rpx; padding-top: 14rpx; border-top: 1rpx solid var(--line); }
+/* ===== 消费日历热力图：已抽出为共用组件 components/heat-calendar ===== */
 
 /* 记一笔悬浮按钮：账单页的主行动，用正向绿呼应趋势图 */
 .fab { background: var(--ok); box-shadow: 0 8rpx 20rpx rgba(24, 167, 117, .28); }

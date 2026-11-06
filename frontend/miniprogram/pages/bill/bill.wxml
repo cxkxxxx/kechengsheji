@@ -46,7 +46,7 @@
         <view class="goal-fill budget {{plan.budget_over ? 'is-over' : ''}}" style="width: {{plan.budget_used > 100 ? 100 : plan.budget_used}}%"></view>
       </view>
       <text class="desc goal-hint" wx:if="{{plan.budget_perDay}}">{{plan.budget_perDay}}</text>
-      <text class="ms-edit" bindtap="openGoalDialog">修改本月目标</text>
+      <text class="ms-edit" wx:if="{{isCurrentMonth}}" bindtap="openGoalDialog">修改本月目标</text>
     </block>
     <!-- 没设目标时给个轻入口，不占一张卡 -->
     <view class="ms-set" wx:if="{{isCurrentMonth && !loading && !(plan && (plan.spend_limit > 0 || plan.target_amount > 0))}}"
@@ -130,7 +130,7 @@
   </view>
 
   <!-- AI 月度解读：统计数字由程序算，AI 只负责解读。历史报告可回看 -->
-  <view class="card report-card" wx:if="{{!loading}}">
+  <view class="card report-card" id="bill-report" wx:if="{{!loading}}">
     <view class="advice-head">
       <view class="flex gap-2">
         <view class="list-icon"><view class="ic ic-spark"></view></view>
@@ -182,29 +182,8 @@
   </view>
 
   <!-- 消费日历热力图：一眼看出哪天花猛了。数据直接由已加载的账单算，不额外请求接口。 -->
-  <view class="card cal-card" wx:if="{{hasBills && cal.cells.length}}">
-    <view class="flex-between cal-head">
-      <view class="flex gap-2">
-        <view class="list-icon"><view class="ic ic-chart"></view></view>
-        <text class="title">哪天花得多</text>
-      </view>
-      <text class="desc">颜色越深当天支出越高 · 峰值 {{cal.max}} 元</text>
-    </view>
-    <view class="cal-week">
-      <text class="cal-wd" wx:for="{{['日','一','二','三','四','五','六']}}" wx:key="*this">{{item}}</text>
-    </view>
-    <view class="cal-grid">
-      <view class="cal-cell {{item.cls}}" wx:for="{{cal.cells}}" wx:key="key"
-            bindtap="pickCalDay" data-day="{{item.day}}">
-        <text class="cal-n">{{item.day || ''}}</text>
-        <text class="cal-v">{{item.short}}</text>
-      </view>
-    </view>
-    <view class="cal-foot">
-      <text class="desc" wx:if="{{cal.picked}}">{{cal.pickedLabel}}：{{cal.pickedAmount}} 元 · {{cal.pickedCount}} 笔</text>
-      <text class="desc" wx:else>点某天的格子看那天明细</text>
-    </view>
-  </view>
+  <!-- 消费日历：与首页共用同一个组件，聚合规则只有一套 -->
+  <heat-calendar wx:if="{{bills.length}}" month="{{month}}" bills="{{bills}}" title="消费日历" />
 
   <!-- 消费明细 -->
   <view class="section" wx:if="{{bills.length}}">
@@ -244,7 +223,7 @@
 
   <!-- 省钱成果：和上面的「消费管理」分开。只算用户确认的实际节省
        （每日打卡 + 攻略/帖子/AI 方案里记的），预算和支出不在这张卡 -->
-  <view class="card save-card" wx:if="{{!loading}}">
+  <view class="card save-card" id="bill-records" wx:if="{{!loading}}">
     <view class="flex-between">
       <view class="flex gap-2">
         <view class="list-icon"><view class="ic ic-check"></view></view>
@@ -266,7 +245,7 @@
       <view class="goal-bar">
         <view class="goal-fill" style="width: {{plan.save_progress > 100 ? 100 : plan.save_progress}}%"></view>
       </view>
-      <text class="ms-edit" bindtap="openGoalDialog">修改本月目标</text>
+      <text class="ms-edit" wx:if="{{isCurrentMonth}}" bindtap="openGoalDialog">修改本月目标</text>
     </block>
 
     <!-- 每日打卡：记下今天省了多少钱，这条记录就在下面的列表里 -->

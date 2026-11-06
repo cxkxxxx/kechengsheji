@@ -61,24 +61,32 @@ Page({
       { label: '打车', cat: '交通', amount: 26, ic: 'ic-arrow' },
       { label: '日用品', cat: '购物', amount: 35, ic: 'ic-plus' }
     ],
-    // 消费日历热力图
-    cal: { cells: [], max: '', picked: false, pickedLabel: '', pickedAmount: '', pickedCount: 0 },
+    // 消费日历已抽出为共用组件，见 components/heat-calendar
     // AI 月度解读：data=最近一次报告，list=历史报告（含当月筛选）
     report: { loading: false, data: null, empty: false, message: '', list: [] },
     // 近 6 个月支出趋势（柱状图）
     trend: { labels: [], values: [] }
   },
 
-  onLoad() {
+  onLoad(options) {
     const month = currentMonth()
     this.setData({ month, monthLabel: this._label(month), isCurrentMonth: true })
     this.loadData()
+    // 深链定位：首页「AI 账单分析」等入口带 focus 进来，直接滚到对应区块
+    this._focus = (options && options.focus) || ''
   },
 
-  // 从助手页记账后切回来要能看到新账
+  // 从助手页记账后切回来要能看到新账；
+  // 首页「AI 账单分析」/我的页深链走 globalData（switchTab 带不了 query）
   onShow() {
+    const pending = getApp().globalData.pendingBillFocus
+    if (pending) {
+      this._focus = pending
+      delete getApp().globalData.pendingBillFocus
+    }
     if (this._loadedOnce) this.loadData()
     this._loadedOnce = true
+    if (this._focus) this._applyFocus()
   },
 
   onPullDownRefresh() {
@@ -100,10 +108,10 @@ Page({
         request('/bills?month=' + month, 'GET', {}, force),
         request('/bills/summary?month=' + month, 'GET', {}, force),
         request('/bills/analysis?month=' + month + '&need_advice=0', 'GET', {}, force),
-        request('/bills/months', 'GET', {}, force)
+        request('/bills/months', 'GET', {}, force),
+        // 目标也按查看月份查（后端 ?month= 支持历史月），翻历史月能看到当时的目标和进度
+        request('/checkin/plan?month=' + month, 'GET', {}, force)
       ]
-      // 省钱目标只针对当月有意义，翻到别的月份就不查，避免显示对不上的数字
-      if (month === currentMonth()) jobs.push(request('/checkin/plan', 'GET', {}, force))
       const [bills, summary, analysis, months, plan] = await Promise.all(jobs)
 
       const list = (bills || []).map(b => Object.assign({}, b, {
@@ -143,75 +151,36 @@ Page({
         analysis: view,
         months: months || [],
         trend: { labels: tLabels, values: tValues },
-        plan: this._decoratePlan(month === currentMonth() ? plan : null),
+        plan: this._decoratePlan(plan),
         hasBills: list.length > 0,
         loading: false
       }, () => {
         this.drawPieChart(cats)   // canvas 节点要等这一帧渲染完才存在
         this.drawTrend()
-        this._buildCal(list, month)
+        // 消费日历已换成共用组件 heat-calendar，cells 由组件自己按 bills 聚合
       })
       this.loadCheckin(month)
       this.loadRecords(month)
       this.loadReportList(month)
+      this._applyFocus()
     } catch (e) {
       this.setData({ loading: false })
       console.error(e)
     }
   },
 
-  // 消费日历热力图：直接把已加载的账单按天聚合，不用多打一次接口
-  _buildCal(list, month) {
-    const byDay = {}
-    ;(list || []).forEach(b => {
-      const d = parseInt(String(b.bill_date || '').slice(8, 10), 10)
-      if (!d) return
-      byDay[d] = byDay[d] || { amount: 0, count: 0 }
-      byDay[d].amount += parseFloat(b.amount) || 0
-      byDay[d].count += 1
-    })
-    const y = parseInt(month.slice(0, 4), 10)
-    const m = parseInt(month.slice(5, 7), 10)
-    const dim = new Date(y, m, 0).getDate()
-    const lead = new Date(y, m - 1, 1).getDay()     // 当月 1 号前面空几格（周日开头）
-    const vals = Object.keys(byDay).map(k => byDay[k].amount)
-    const max = vals.length ? Math.max.apply(null, vals) : 0
-
-    const cells = []
-    for (let i = 0; i < lead; i++) cells.push({ key: 'e' + i, day: 0, cls: 'cal-empty', short: '' })
-    for (let d = 1; d <= dim; d++) {
-      const v = byDay[d] ? byDay[d].amount : 0
-      // 分四档上色，用「占峰值的比例」而不是绝对金额，换个月份也能横向比较
-      let cls = v > 0 ? 'cal-l1' : 'cal-l0'
-      if (max > 0 && v > 0) {
-        const r = v / max
-        cls = r > 0.66 ? 'cal-l4' : r > 0.33 ? 'cal-l3' : r > 0.12 ? 'cal-l2' : 'cal-l1'
-      }
-      cells.push({ key: 'd' + d, day: d, cls, short: v >= 1000 ? (v / 1000).toFixed(1) + 'k' : (v ? Math.round(v) : '') })
-    }
-    this.setData({
-      'cal.cells': cells,
-      'cal.max': max ? formatMoney(max) : '—',
-      'cal.picked': false, 'cal.pickedLabel': '', 'cal.pickedAmount': '', 'cal.pickedCount': 0
-    })
+  // 深链定位：首页/我的带 focus 进来时滚到对应区块，只生效一次
+  _applyFocus() {
+    const sel = { report: '#bill-report', records: '#bill-records', goal: '#bill-goal' }[this._focus || '']
+    this._focus = ''
+    if (!sel) return
+    setTimeout(() => {
+      try { wx.pageScrollTo({ selector: sel, duration: 300 }) } catch (e) { /* 旧基础库不支持 selector，静默 */ }
+    }, 600)
   },
 
-  pickCalDay(e) {
-    const d = e.currentTarget.dataset.day
-    if (!d) return
-    const month = this.data.month
-    const rows = this.data.bills.filter(b =>
-      String(b.bill_date).slice(0, 10) === month + '-' + (d < 10 ? '0' + d : d))
-    const sum = rows.reduce((s, b) => s + (parseFloat(b.amount) || 0), 0)
-    this.setData({
-      cal: Object.assign({}, this.data.cal, {
-        picked: true,
-        pickedLabel: month.slice(5) + '月' + d + '日',
-        pickedAmount: formatMoney(sum) + ' 元',
-        pickedCount: rows.length
-      })
-    })
-  },
+  // 消费日历热力图与「点某天」的聚合/展示都进了共用组件 heat-calendar，
+  // 这里不再维护第二套日期统计逻辑
 
   // 打卡：拉本月明细，用来渲染日历格子和高亮「今天已打」
   async loadCheckin(month) {

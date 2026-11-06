@@ -15,8 +15,8 @@
           bindtap="pickTag" data-tag="{{item}}">{{item}}</view>
   </scroll-view>
 
-  <scroll-view scroll-y class="refresh-list" refresher-enabled
-               refresher-triggered="{{refreshing}}" bindrefresherrefresh="onRefresherRefresh">
+  <!-- 页面级滚动：帖子列表不再嵌套 scroll-view（嵌套曾是滑动卡顿/截断的根因） -->
+  <view class="refresh-list">
     <block wx:if="{{loading}}">
       <view class="card post-card" wx:for="{{[1,2,3]}}" wx:key="*this">
         <view class="skeleton" style="height: 56rpx; width: 55%;"></view>
@@ -71,7 +71,7 @@
       </view>
     </block>
     <view class="list-padding"></view>
-  </scroll-view>
+  </view>
 
   <!-- 发布：右下角唯一悬浮钮，与底部导航留出安全距离 -->
   <view class="fab fab-post" bindtap="goCreatePost" aria-label="发帖">

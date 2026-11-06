@@ -1,10 +1,10 @@
 /* 社区页：内容优先的信息流。通用件（card/chip/imgs 九宫格/empty/skeleton/ic）在 app.wxss */
 
 page { background: var(--bg); }
+/* 页面级滚动：去掉固定高度与 overflow hidden，整页自然滚动；
+   底部 padding 给 FAB 和 tabBar 留出不遮挡最后一帖的空间 */
 .container {
-  height: 100vh; min-height: 0;
-  display: flex; flex-direction: column; overflow: hidden;
-  padding: 0 0 120rpx;
+  padding: 0 0 140rpx;
 }
 
 /* —— 顶栏：轻文案 + 圆形发帖钮（全页唯一发帖入口） —— */
@@ -37,8 +37,8 @@ page { background: var(--bg); }
   background: var(--brand); border-color: var(--brand); color: #fff; font-weight: 500;
 }
 
-/* —— 信息流 —— */
-.refresh-list { flex: 1; height: 0; padding-top: 8rpx; }
+/* —— 信息流（页面级滚动，普通容器） —— */
+.refresh-list { padding-top: 8rpx; }
 
 .post-card {
   margin: 0 24rpx 16rpx; padding: 24rpx 26rpx;

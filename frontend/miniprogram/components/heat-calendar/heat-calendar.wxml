@@ -1,0 +1,26 @@
+<view class="cal-card">
+  <view class="cal-head">
+    <text class="cal-title">{{monthLabel}}{{title}}</text>
+    <view class="cal-legend">
+      <view class="cal-lg cal-lg-1"></view>
+      <view class="cal-lg cal-lg-2"></view>
+      <view class="cal-lg cal-lg-3"></view>
+      <view class="cal-lg cal-lg-4"></view>
+      <text class="cal-lg-txt">越深花得越多 · 峰值 {{max}} 元</text>
+    </view>
+  </view>
+  <view class="cal-week">
+    <text class="cal-wd" wx:for="{{['日','一','二','三','四','五','六']}}" wx:key="*this">{{item}}</text>
+  </view>
+  <view class="cal-grid">
+    <view class="cal-cell {{item.cls}} {{item.isToday ? 'cal-today' : ''}}" wx:for="{{cells}}" wx:key="key"
+          bindtap="onTapDay" data-day="{{item.day}}">
+      <text class="cal-n">{{item.day || ''}}</text>
+      <text class="cal-v">{{item.short}}</text>
+    </view>
+  </view>
+  <view class="cal-foot">
+    <text class="cal-foot-txt" wx:if="{{picked}}">{{pickedLabel}}：{{pickedAmount}} 元 · {{pickedCount}} 笔</text>
+    <text class="cal-foot-txt" wx:else>点某天的格子看那天明细</text>
+  </view>
+</view>
