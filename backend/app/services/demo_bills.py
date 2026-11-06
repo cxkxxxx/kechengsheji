@@ -139,13 +139,20 @@ def generate_month(db, user_id: int, ym: str, today: date = None) -> dict:
     import calendar
     y, m = int(ym[:4]), int(ym[5:7])
     dim = calendar.monthrange(y, m)[1]
-    last_day = dim if date(y, m, dim) < today else today.day
+    month_start, month_end = date(y, m, 1), date(y, m, dim)
+    if month_start > today:
+        # 整月还没开始：以前这里会退化成「造到 today.day」，等于给未来月份造账单
+        return {"rows": [], "target": 0.0, "fixed": 0.0}
+    last_day = dim if month_end < today else today.day
     if last_day < 1:
         return {"rows": [], "target": 0.0, "fixed": 0.0}
+    # 当月只过了一部分，预算和笔数都按已过天数比例缩：
+    # 不缩的话 6 天会撒出一整月的量，日均和趋势柱假高一大截（实测 11 月日均 1043，其它月 150 上下）
+    elapsed = last_day / dim
 
     rng = random.Random(int(user_id) * 131 + _month_index(ym))
     p = profile_for(user_id)
-    target = month_actual_target(user_id, ym)
+    target = round(month_actual_target(user_id, ym) * elapsed, 2)
     # 房租/水电随消费水平缩放，夹在 0.45~1.6 倍之间：
     # 低预算用户不至于交不起房租，高预算用户也不至于房租小得离谱。
     fscale = max(0.45, min(1.6, p["monthly_base"] / 3600.0))
@@ -153,21 +160,25 @@ def generate_month(db, user_id: int, ym: str, today: date = None) -> dict:
     rows, fixed_total = [], 0.0
     # 1) 月初固定支出
     for label, cat, (lo, hi), (d1, d2), chans, scales in _FIXED_ITEMS:
-        dom = rng.randint(d1, min(d2, last_day))
+        dom = rng.randint(d1, d2)
+        if dom > last_day:
+            continue   # 这个月还没到该交的日子（比如今天 6 号，房租 8 号才交）
         k = fscale if scales else 1.0
         amt = round(rng.uniform(lo, hi) * k, 2)
         fixed_total += amt
         rows.append(_row(user_id, cat, label, amt, date(y, m, dom), rng))
 
     # 2) 日常浮动：把剩余预算撒到每一天，按日权重决定「这天花多少」和「分几笔」
-    budget = max(120.0, target - fixed_total)
+    budget = max(60.0, target - fixed_total)
     days = [date(y, m, d) for d in range(1, last_day + 1)]
     weights = [_day_weight(d) for d in days]
     tw = sum(weights) or 1.0
     # 笔数随预算规模走：月花 1800 的人和月花 6500 的人不该都是 28 笔。
     # 之前写死 20~34 笔，导致高预算用户怎么抽都凑不到目标（scale 被钳制挡掉，
     # 结果「目标 5436 只造出 1794」）。
-    n_txn = max(18, min(46, int(budget / 95)))
+    # 下限从 18 降到 4：当月只过了几天时，budget 已经按天数缩过，
+    # 再强塞 18 笔就变成「一天三笔」，日均和笔数都会假高。
+    n_txn = max(4, min(46, int(budget / 95)))
     routine = []
     for _ in range(n_txn):
         pick = rng.random() * tw

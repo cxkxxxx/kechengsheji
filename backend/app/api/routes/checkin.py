@@ -52,12 +52,19 @@ def _plan_payload(plan, month: str, spend: float) -> dict:
 
 @router.get("/plan")
 def get_plan(
+    month: str = "",
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-        # 获取当前月的省钱计划
-
-    month = datetime.now().strftime("%Y-%m")
+    # 获取省钱计划：默认当月，可传 ?month=2026-09 查历史月（首页只看当月，账单页切月份用）
+    month = (month or "").strip()
+    if month:
+        try:
+            datetime.strptime(month, "%Y-%m")
+        except ValueError:
+            raise HTTPException(400, "月份格式应为 YYYY-MM")
+    else:
+        month = datetime.now().strftime("%Y-%m")
     plan = db.query(BudgetPlan).filter(
         BudgetPlan.user_id == current_user.id,
         BudgetPlan.month == month,
