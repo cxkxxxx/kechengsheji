@@ -58,4 +58,7 @@ def get_current_user(
     user = db.query(User).filter(User.id == user_id).first()
     if user is None:
         raise credentials_exception
+    # 停用/软删除的账号即使手里还有未过期 token 也一律拒绝
+    if (user.status or "active") != "active":
+        raise HTTPException(status_code=403, detail="账号已被停用，请联系管理员")
     return user

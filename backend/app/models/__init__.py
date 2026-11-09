@@ -14,3 +14,4 @@ from app.models.checkin import Checkin
 from app.models.ai_assist import AICreation, AIBillReport, AIExecPlan, AIReview
 from app.core.database import Base
 from app.models.admin import Admin
+from app.models.admin_log import AdminLog

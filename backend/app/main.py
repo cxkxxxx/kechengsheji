@@ -15,7 +15,7 @@ from sqlalchemy import text
 from app.core.database import engine
 from app.core.migrate import ensure_columns
 from app.models import Base
-from app.api.routes import auth, articles, posts, agent, bills, checkin, comments, favorites, admin, price, upload, ai_assist
+from app.api.routes import auth, articles, posts, agent, bills, checkin, comments, favorites, admin, admin_ext, price, upload, ai_assist
 
 # 首次启动自动建表
 Base.metadata.create_all(bind=engine)
@@ -145,6 +145,7 @@ app.include_router(price.router,      prefix="/price",      tags=["商品比价"
 app.include_router(upload.router,    prefix="/upload",     tags=["图片上传"])
 app.include_router(ai_assist.router, prefix="/ai",        tags=["AI应用"])
 app.include_router(admin.router)
+app.include_router(admin_ext.router)
 
 @app.get("/")
 def read_root():

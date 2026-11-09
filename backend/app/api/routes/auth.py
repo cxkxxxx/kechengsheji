@@ -86,6 +86,8 @@ def login_password(req: UserLogin, db: Session = Depends(get_db),
     user = _by_nickname((req.nickname or "").strip(), db)
     if not user or not verify_password(req.password, user.password_hash):
         raise HTTPException(401, "昵称或密码不正确")
+    if (user.status or "active") != "active":
+        raise HTTPException(403, "账号已被停用，请联系管理员")
     return _issue(user)
 
 

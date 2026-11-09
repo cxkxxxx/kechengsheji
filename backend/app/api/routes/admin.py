@@ -3,7 +3,7 @@ import os
 import hashlib
 
 from fastapi import APIRouter, Depends, Header, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, FileResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -21,6 +21,8 @@ from app.models.bill import Bill
 from app.models.favorite import Favorite
 from app.models.chat_record import ChatRecord
 from app.models.post_like import PostLike
+from app.models.checkin import Checkin
+from app.services import admin_log
 
 from jose import jwt, JWTError
 from sqlalchemy import func
@@ -92,9 +94,19 @@ def admin_page():
     html_path = os.path.join(os.path.dirname(__file__), "..", "..", "admin_web", "index.html")
     try:
         with open(html_path, "r", encoding="utf-8") as fp:
-            return HTMLResponse(fp.read())
+            body = fp.read()
     except FileNotFoundError:
         return HTMLResponse("<h2>管理页面缺失：app/admin_web/index.html</h2>")
+    # no-store：后台是单文件页面，改完刷新就该看到新版；
+    # 否则浏览器拿着缓存旧 HTML，会让人误判「改了没生效」
+    return HTMLResponse(body, headers={"Cache-Control": "no-store"})
+
+
+@router.get("/admin/assets/echarts.min.js")
+def admin_echarts():
+    # 图表库 vendored 到本地同源提供，不依赖外部 CDN（离线/内网也能出图，也避免 CDN 被投毒）
+    p = os.path.join(os.path.dirname(__file__), "..", "..", "admin_web", "echarts.min.js")
+    return FileResponse(p, media_type="application/javascript")
 
 
 # ---------- 登录 ----------
@@ -149,11 +161,13 @@ def admin_stats(_=Depends(get_current_admin), db: Session = Depends(get_db)):
 
 # ---------- 用户管理 ----------
 @router.get("/admin/api/users")
-def admin_users(q: str = "", skip: int = 0, limit: int = 50,
+def admin_users(q: str = "", status: str = "", skip: int = 0, limit: int = 50,
                 _=Depends(get_current_admin), db: Session = Depends(get_db)):
     query = db.query(User)
     if q:
         query = query.filter(User.nickname.contains(q))
+    if status:
+        query = query.filter(User.status == status)
     total = query.count()
     users = query.order_by(User.created_at.desc()).offset(skip).limit(limit).all()
     items = []
@@ -162,6 +176,7 @@ def admin_users(q: str = "", skip: int = 0, limit: int = 50,
         post_count = db.query(func.count(Post.id)).filter(Post.user_id == u.id).scalar() or 0
         items.append({
             "id": u.id, "nickname": u.nickname, "avatar": u.avatar,
+            "status": u.status or "active",
             "budget_goal": u.budget_goal, "total_saved": u.total_saved,
             "bill_total": round(float(bill_total), 2), "post_count": post_count,
             "created_at": (u.created_at.strftime("%Y-%m-%d %H:%M") if u.created_at else ""),
@@ -169,20 +184,77 @@ def admin_users(q: str = "", skip: int = 0, limit: int = 50,
     return success({"total": total, "items": items})
 
 
-@router.delete("/admin/api/users/{uid}")
-def admin_user_delete(uid: int, _=Depends(get_current_admin), db: Session = Depends(get_db)):
+@router.get("/admin/api/users/{uid}")
+def admin_user_detail(uid: int, _=Depends(get_current_admin), db: Session = Depends(get_db)):
+    """用户详情只给聚合数字，不返回私人账单明细/AI 对话正文。"""
     u = db.query(User).filter(User.id == uid).first()
     if not u:
         return error("用户不存在", 404)
-    db.query(Post).filter(Post.user_id == uid).delete(synchronize_session=False)
-    db.query(Comment).filter(Comment.user_id == uid).delete(synchronize_session=False)
-    db.query(Bill).filter(Bill.user_id == uid).delete(synchronize_session=False)
-    db.query(Favorite).filter(Favorite.user_id == uid).delete(synchronize_session=False)
-    db.query(ChatRecord).filter(ChatRecord.user_id == uid).delete(synchronize_session=False)
-    db.query(PostLike).filter(PostLike.user_id == uid).delete(synchronize_session=False)
-    db.delete(u)
+    agg = {
+        "bills": db.query(func.count(Bill.id)).filter(Bill.user_id == uid).scalar() or 0,
+        "bill_total": round(float(db.query(func.coalesce(func.sum(Bill.amount), 0)).filter(Bill.user_id == uid).scalar() or 0), 2),
+        "posts": db.query(func.count(Post.id)).filter(Post.user_id == uid).scalar() or 0,
+        "comments": db.query(func.count(Comment.id)).filter(Comment.user_id == uid).scalar() or 0,
+        "favorites": db.query(func.count(Favorite.id)).filter(Favorite.user_id == uid).scalar() or 0,
+        "checkins": db.query(func.count(Checkin.id)).filter(Checkin.user_id == uid).scalar() or 0,
+    }
+    return success({
+        "id": u.id, "nickname": u.nickname, "avatar": u.avatar,
+        "status": u.status or "active", "budget_goal": u.budget_goal,
+        "total_saved": u.total_saved, "has_password": bool(u.password_hash),
+        "created_at": (u.created_at.strftime("%Y-%m-%d %H:%M") if u.created_at else ""),
+        "agg": agg,
+    })
+
+
+class UserPatch(BaseModel):
+    nickname: str = ""
+    avatar: str = ""
+    budget_goal: float = -1
+
+
+@router.patch("/admin/api/users/{uid}")
+def admin_user_update(uid: int, body: UserPatch, admin=Depends(get_current_admin),
+                      db: Session = Depends(get_db)):
+    u = db.query(User).filter(User.id == uid).first()
+    if not u:
+        return error("用户不存在", 404)
+    if body.nickname:
+        u.nickname = body.nickname.strip()[:50]
+    if body.avatar:
+        u.avatar = body.avatar[:500]
+    if body.budget_goal >= 0:
+        u.budget_goal = round(float(body.budget_goal), 2)
     db.commit()
-    return success(True, "用户及其关联数据已删除")
+    admin_log.record(db, admin, "update", "user", uid, "修改用户资料")
+    return success(True, "已更新")
+
+
+@router.patch("/admin/api/users/{uid}/status")
+def admin_user_status(uid: int, body: dict, admin=Depends(get_current_admin),
+                      db: Session = Depends(get_db)):
+    u = db.query(User).filter(User.id == uid).first()
+    if not u:
+        return error("用户不存在", 404)
+    st = (body or {}).get("status", "")
+    if st not in ("active", "disabled"):
+        return error("状态只能是 active / disabled", 400)
+    u.status = st
+    db.commit()
+    admin_log.record(db, admin, "status", "user", uid, "账号" + ("启用" if st == "active" else "停用"))
+    return success({"status": st}, "已更新状态")
+
+
+@router.delete("/admin/api/users/{uid}")
+def admin_user_delete(uid: int, admin=Depends(get_current_admin), db: Session = Depends(get_db)):
+    """软删除：只置 status=deleted，保留帖子/账单/评论等业务关联，不做级联物理删除。"""
+    u = db.query(User).filter(User.id == uid).first()
+    if not u:
+        return error("用户不存在", 404)
+    u.status = "deleted"
+    db.commit()
+    admin_log.record(db, admin, "delete", "user", uid, "软删除用户（保留业务数据）")
+    return success(True, "用户已停用并标记删除，业务数据保留")
 
 
 # ---------- 攻略文章管理 ----------
@@ -209,7 +281,7 @@ def admin_articles(q: str = "", status: str = "", skip: int = 0, limit: int = 50
 
 
 @router.patch("/admin/api/articles/{aid}/status")
-def admin_article_status(aid: int, body: dict, _=Depends(get_current_admin), db: Session = Depends(get_db)):
+def admin_article_status(aid: int, body: dict, admin=Depends(get_current_admin), db: Session = Depends(get_db)):
     a = db.query(Article).filter(Article.id == aid).first()
     if not a:
         return error("文章不存在", 404)
@@ -218,6 +290,7 @@ def admin_article_status(aid: int, body: dict, _=Depends(get_current_admin), db:
         return error("状态只能是 pending / approved / rejected", 400)
     a.status = st
     db.commit()
+    admin_log.record(db, admin, "status", "article", aid, "攻略审核状态→" + st)
     return success({"status": a.status}, "已更新状态")
 
 
@@ -229,7 +302,7 @@ def _admin_get_article(aid: int, db: Session):
 
 
 @router.post("/admin/api/articles")
-def admin_article_create(payload: ArticleIn, _=Depends(get_current_admin), db: Session = Depends(get_db)):
+def admin_article_create(payload: ArticleIn, admin=Depends(get_current_admin), db: Session = Depends(get_db)):
     try:
         images = image_field.dumps(payload.images, ARTICLE_MAX_IMAGES, "配图")
     except ValueError as e:
@@ -239,11 +312,12 @@ def admin_article_create(payload: ArticleIn, _=Depends(get_current_admin), db: S
                 status=payload.status if payload.status in ("pending", "approved", "rejected") else "approved")
     db.add(a)
     db.commit()
+    admin_log.record(db, admin, "create", "article", a.id, "新增攻略：" + payload.title[:40])
     return success({"id": a.id}, "已创建")
 
 
 @router.put("/admin/api/articles/{aid}")
-def admin_article_update(aid: int, payload: ArticleIn, _=Depends(get_current_admin), db: Session = Depends(get_db)):
+def admin_article_update(aid: int, payload: ArticleIn, admin=Depends(get_current_admin), db: Session = Depends(get_db)):
     a, err = _admin_get_article(aid, db)
     if err:
         return err
@@ -257,17 +331,19 @@ def admin_article_update(aid: int, payload: ArticleIn, _=Depends(get_current_adm
     if payload.status in ("pending", "approved", "rejected"):
         a.status = payload.status
     db.commit()
+    admin_log.record(db, admin, "update", "article", aid, "编辑攻略：" + payload.title[:40])
     return success(True, "已更新")
 
 
 @router.delete("/admin/api/articles/{aid}")
-def admin_article_delete(aid: int, _=Depends(get_current_admin), db: Session = Depends(get_db)):
+def admin_article_delete(aid: int, admin=Depends(get_current_admin), db: Session = Depends(get_db)):
     a, err = _admin_get_article(aid, db)
     if err:
         return err
     db.query(Comment).filter(Comment.target_type == "article", Comment.target_id == aid).delete(synchronize_session=False)
     db.delete(a)
     db.commit()
+    admin_log.record(db, admin, "delete", "article", aid, "删除攻略：" + a.title[:40])
     return success(True, "已删除")
 
 
@@ -294,18 +370,19 @@ def admin_posts(q: str = "", status: str = "", skip: int = 0, limit: int = 50,
 
 
 @router.patch("/admin/api/posts/{pid}/status")
-def admin_post_status(pid: int, body: dict, _=Depends(get_current_admin), db: Session = Depends(get_db)):
+def admin_post_status(pid: int, body: dict, admin=Depends(get_current_admin), db: Session = Depends(get_db)):
     p = db.query(Post).filter(Post.id == pid).first()
     if not p:
         return error("帖子不存在", 404)
     st = (body or {}).get("status", "approved")
     p.status = st if st in ("pending", "approved", "rejected") else "approved"
     db.commit()
+    admin_log.record(db, admin, "status", "post", pid, "帖子审核状态→" + p.status)
     return success({"status": p.status}, "已更新状态")
 
 
 @router.delete("/admin/api/posts/{pid}")
-def admin_post_delete(pid: int, _=Depends(get_current_admin), db: Session = Depends(get_db)):
+def admin_post_delete(pid: int, admin=Depends(get_current_admin), db: Session = Depends(get_db)):
     p = db.query(Post).filter(Post.id == pid).first()
     if not p:
         return error("帖子不存在", 404)
@@ -313,6 +390,7 @@ def admin_post_delete(pid: int, _=Depends(get_current_admin), db: Session = Depe
     db.query(PostLike).filter(PostLike.post_id == pid).delete(synchronize_session=False)
     db.delete(p)
     db.commit()
+    admin_log.record(db, admin, "delete", "post", pid, "删除帖子：" + p.title[:40])
     return success(True, "已删除")
 
 
@@ -420,10 +498,11 @@ def admin_comments(q: str = "", skip: int = 0, limit: int = 50,
 
 
 @router.delete("/admin/api/comments/{cid}")
-def admin_comment_delete(cid: int, _=Depends(get_current_admin), db: Session = Depends(get_db)):
+def admin_comment_delete(cid: int, admin=Depends(get_current_admin), db: Session = Depends(get_db)):
     c = db.query(Comment).filter(Comment.id == cid).first()
     if not c:
         return error("评论不存在", 404)
     db.delete(c)
     db.commit()
+    admin_log.record(db, admin, "delete", "comment", cid, "删除评论")
     return success(True, "已删除")
